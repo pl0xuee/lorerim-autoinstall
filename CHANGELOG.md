@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Steam setup now ends with a Linux compatibility pass over the installed modlist. It replaces JContainers SE's DLL — every Nexus release up to 4.2.9.0 crashes under Proton, taking Wheeler and anything else built on JContainers down with it — with the author's patched build, applied only to installs on the SKSE runtime it targets. The shipped DLL is kept alongside as `.nexus.bak`, and re-running the pass on a patched install does nothing.
+  - Both the downloaded archive and the extracted DLL are checked against pinned SHA-256 hashes, so nothing unverified reaches the extractor or the game folder; the download is capped, retried on transient failures, and given an explicit timeout rather than being reported as a cancelled install.
+  - Mod folders are matched case-insensitively: archives authored on Windows land as `skse/plugins` or `Root`/`root` on a case-sensitive filesystem, and a missed DLL would have meant a crash on launch with nothing in the log to explain it. Each outcome — not present, unsupported SKSE runtime, already patched, patched now — is logged distinctly for the same reason.
+
 ## v0.1.1
 
 Bug-fix and polish release after a full code review and security sweep.

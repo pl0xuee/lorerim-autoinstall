@@ -10,7 +10,9 @@ namespace Lorerim.Gui.Services.Engine;
 /// </summary>
 public class JackifyEngineLocator
 {
-    public string? EngineDir
+    /// <summary>Virtual so tests can pin "no engine" instead of depending on the host layout
+    /// and the LORERIM_ENGINE_PATH a developer may have set.</summary>
+    public virtual string? EngineDir
     {
         get
         {

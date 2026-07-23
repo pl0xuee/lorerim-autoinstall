@@ -72,6 +72,7 @@ public partial class App : Application
             .AddSingleton<JackifyEngineLocator>()
             .AddSingleton<JackifyEngineRunner>()
             .AddSingleton<ModlistResolverService>()
+            .AddSingleton<ModFixupService>()
             .AddSingleton<NexusOAuthService>()
             .AddSingleton<NexusTokenStore>()
             .AddSingleton<ProtocolHandlerRegistrar>()

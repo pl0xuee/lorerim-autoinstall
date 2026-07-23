@@ -8,6 +8,7 @@ Pick your install and download folders, sign in to Nexus Mods, click **INSTALL L
 - Nexus Mods sign-in via browser (OAuth); fully unattended downloads with Nexus Premium
 - Downloads and installs the modlist with a bundled [jackify-engine](https://github.com/Omni-guides/dev-jackify-engine) (native-Linux Wabbajack)
 - Adds a **LoreRim** shortcut to your Steam library pointing at Mod Organizer 2, assigns GE-Proton, creates the prefix, and installs prerequisites via protontricks
+- Applies Linux compatibility fixes the modlist itself cannot ship, including swapping in a patched JContainers SE build (the Nexus one crashes under Proton)
 
 ## Requirements
 

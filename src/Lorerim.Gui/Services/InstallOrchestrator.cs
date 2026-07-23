@@ -38,6 +38,7 @@ public class InstallOrchestrator(
     SteamLocator steamLocator,
     CompatToolCatalog compatTools,
     SteamIntegrationService steamIntegration,
+    ModFixupService modFixups,
     LogService log
 )
 {
@@ -193,6 +194,12 @@ public class InstallOrchestrator(
                 ct
             );
             Report(InstallPhase.SteamSetup, StepState.Ok);
+        }
+        else
+        {
+            // Steam setup normally ends with the compatibility fixes; without it they would
+            // be skipped and the modlist would crash on launch.
+            await modFixups.ApplyAsync(Path.GetDirectoryName(mo2Exe)!, ct);
         }
 
         Report(InstallPhase.Done, StepState.Ok);

@@ -38,6 +38,7 @@ public class SteamIntegrationService(
     ProtonPrefixService prefixService,
     ProtontricksService protontricks,
     SteamGridArtService gridArt,
+    Modlist.ModFixupService modFixups,
     LogService log
 )
 {
@@ -48,6 +49,7 @@ public class SteamIntegrationService(
         "Restart Steam",
         "Create Proton prefix",
         "Install prerequisites (protontricks)",
+        "Apply Linux compatibility fixes",
     ];
 
     public async Task RunAsync(
@@ -90,6 +92,9 @@ public class SteamIntegrationService(
             ),
             report
         );
+        // Last, because it is the only step that touches the modlist rather than Steam, and
+        // re-running it after a failure is cheap: an already-patched install is a no-op.
+        await Step(5, () => modFixups.ApplyAsync(ctx.StartDir, ct), report);
     }
 
     /// <summary>STEAM_COMPAT_MOUNTS for any LoreRim path outside the home mount, always ending in %command%.</summary>
