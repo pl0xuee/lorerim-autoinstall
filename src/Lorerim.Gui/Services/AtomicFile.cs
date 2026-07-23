@@ -40,11 +40,24 @@ public static class AtomicFile
     public static async Task WriteAllTextAsync(
         string path,
         string contents,
-        CancellationToken ct = default
+        CancellationToken ct = default,
+        UnixFileMode? unixCreateMode = null
     )
     {
         var tmp = path + ".tmp";
-        await using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.Create,
+            Access = FileAccess.Write,
+            Share = FileShare.None,
+        };
+        if (unixCreateMode is { } mode && OperatingSystem.IsLinux())
+        {
+            // Applied at creation so secret-bearing files are never even briefly readable
+            // by other users.
+            options.UnixCreateMode = mode;
+        }
+        await using (var fs = new FileStream(tmp, options))
         await using (var writer = new StreamWriter(fs))
         {
             await writer.WriteAsync(contents.AsMemory(), ct);

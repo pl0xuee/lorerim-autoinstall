@@ -45,13 +45,23 @@ public class ProtocolHandlerRegistrar(LogService log)
                 Environment.GetEnvironmentVariable("APPIMAGE")
                 ?? Environment.ProcessPath
                 ?? throw new InvalidOperationException("Cannot determine executable path");
+            foreach (var c in execPath)
+            {
+                if (char.IsControl(c))
+                {
+                    // A newline would terminate the Exec= key and let the rest of the path
+                    // inject arbitrary desktop-file keys into a handler any website can fire.
+                    log.Append("Executable path contains control characters; not registering the sign-in handler.");
+                    return;
+                }
+            }
 
             var content = $"""
                 [Desktop Entry]
                 Type=Application
                 Name=LoreRim Autoinstall (OAuth handler)
                 Comment=Handles Nexus Mods sign-in callbacks
-                Exec="{execPath}" %u
+                Exec={QuoteExecArg(execPath)} %u
                 Terminal=false
                 NoDisplay=true
                 Categories=Game;Utility;
@@ -74,6 +84,19 @@ public class ProtocolHandlerRegistrar(LogService log)
         {
             log.Append($"Protocol handler registration failed: {e.Message}");
         }
+    }
+
+    /// <summary>
+    /// Desktop Entry spec quoting: % doubles (field-code expansion), and inside a quoted
+    /// argument backslash and double-quote are backslash-escaped.
+    /// </summary>
+    internal static string QuoteExecArg(string path)
+    {
+        var escaped = path
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("%", "%%");
+        return $"\"{escaped}\"";
     }
 
     private static void RunQuiet(string file, params string[] args)

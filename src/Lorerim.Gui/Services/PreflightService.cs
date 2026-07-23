@@ -41,6 +41,13 @@ public class PreflightService(
     {
         var checks = new List<PreflightCheck>();
 
+        // These paths end up inside quoted Steam launch options and VDF strings, where
+        // a double-quote, colon or newline corrupts the command Steam later runs.
+        if ((PathProblem(installDir) ?? PathProblem(downloadDir)) is { } pathProblem)
+        {
+            checks.Add(new PreflightCheck("Folder names", CheckState.Fail, pathProblem));
+        }
+
         var steam = steamLocator.Locate();
         checks.Add(
             steam is null
@@ -83,7 +90,9 @@ public class PreflightService(
 
         checks.Add(ProtonCheck(compatTools.Scan(steam?.Root)));
 
-        checks.AddRange(SpaceChecks(installDir, downloadDir));
+        checks.AddRange(
+            SpaceChecks(installDir, downloadDir, RequiredDownloadBytes, RequiredInstallBytes)
+        );
         checks.Add(RotationalCheck(installDir));
 
         checks.Add(await EngineCheckAsync(ct));
@@ -128,7 +137,12 @@ public class PreflightService(
     /// so they must be checked together — two independent checks can each pass while the
     /// install still runs the disk dry partway through.
     /// </summary>
-    private static List<PreflightCheck> SpaceChecks(string installDir, string downloadDir)
+    internal static List<PreflightCheck> SpaceChecks(
+        string installDir,
+        string downloadDir,
+        long requiredDownload,
+        long requiredInstall
+    )
     {
         try
         {
@@ -158,7 +172,7 @@ public class PreflightService(
                     BuildSpaceCheck(
                         "Disk space",
                         installVolume.AvailableFreeSpace,
-                        RequiredDownloadBytes + RequiredInstallBytes,
+                        requiredDownload + requiredInstall,
                         $"{installVolume.RootDirectory.FullName} (downloads and install share it)"
                     ),
                 ];
@@ -168,13 +182,13 @@ public class PreflightService(
                 BuildSpaceCheck(
                     "Download space",
                     downloadVolume.AvailableFreeSpace,
-                    RequiredDownloadBytes,
+                    requiredDownload,
                     downloadVolume.RootDirectory.FullName
                 ),
                 BuildSpaceCheck(
                     "Install space",
                     installVolume.AvailableFreeSpace,
-                    RequiredInstallBytes,
+                    requiredInstall,
                     installVolume.RootDirectory.FullName
                 ),
             ];
@@ -215,6 +229,20 @@ public class PreflightService(
             bestLength = root.Length;
         }
         return best;
+    }
+
+    /// <summary>Reason a folder path can't be used safely in launch options/VDF, or null if fine.</summary>
+    internal static string? PathProblem(string dir)
+    {
+        foreach (var c in dir)
+        {
+            if (c == '"' || c == ':' || char.IsControl(c))
+            {
+                var shown = c == '"' ? "a double quote" : c == ':' ? "a colon" : "a control character";
+                return $"'{dir}' contains {shown} — Steam launch options can't represent that; pick a simpler folder name.";
+            }
+        }
+        return null;
     }
 
     /// <summary>Prefix match on directory boundaries, so /mnt/Games2 isn't "under" /mnt/Games.</summary>
@@ -326,7 +354,7 @@ public class PreflightService(
                 continue;
             }
             var mountPoint = parts[1];
-            if (path.StartsWith(mountPoint, StringComparison.Ordinal) && mountPoint.Length > bestLen)
+            if (IsUnder(path, mountPoint) && mountPoint.Length > bestLen)
             {
                 bestLen = mountPoint.Length;
                 device = parts[0];

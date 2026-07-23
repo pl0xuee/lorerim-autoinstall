@@ -121,7 +121,7 @@ public class ProtontricksService(LogService log)
     private void Cleanup(string? prefixPath)
     {
         // wineserver -k with no WINEPREFIX targets ~/.wine — killing the user's unrelated
-        // Wine apps while leaving the stuck GAMMA-prefix processes running. Scope the kill
+        // Wine apps while leaving the stuck prefix processes running. Scope the kill
         // to the actual prefix; if we don't know it, do nothing rather than nuke ~/.wine.
         if (string.IsNullOrEmpty(prefixPath))
         {
@@ -265,15 +265,6 @@ public class ProtontricksService(LogService log)
         psi.Environment["WINEDEBUG"] = "-all";
         psi.Environment["WINETRICKS_SUPER_QUIET"] = "1";
         return psi;
-    }
-
-    private void LogTail(string stdout, string stderr)
-    {
-        var tail = Tail(stdout + "\n" + stderr);
-        if (!string.IsNullOrWhiteSpace(tail))
-        {
-            log.Append(tail);
-        }
     }
 
     private static string Tail(string s, int lines = 8) =>

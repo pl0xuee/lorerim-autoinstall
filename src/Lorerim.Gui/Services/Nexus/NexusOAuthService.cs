@@ -238,20 +238,15 @@ public class NexusOAuthService(
 
     private static void OpenBrowser(string url)
     {
-        var psi = new ProcessStartInfo
-        {
-            FileName = "xdg-open",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-        };
+        var psi = new ProcessStartInfo { FileName = "xdg-open", UseShellExecute = false };
         psi.ArgumentList.Add(url);
         // AppImage library paths must not leak into the browser process.
         foreach (var v in (string[])["LD_LIBRARY_PATH", "APPIMAGE", "APPDIR", "ARGV0", "OWD"])
         {
             psi.Environment.Remove(v);
         }
-        Process.Start(psi);
+        // Dispose immediately: no pipes are held, and the runtime reaps the child on exit.
+        Process.Start(psi)?.Dispose();
     }
 
     private static string Base64Url(byte[] bytes) =>

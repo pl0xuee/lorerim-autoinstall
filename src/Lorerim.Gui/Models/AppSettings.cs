@@ -25,17 +25,21 @@ public class AppSettings
 
     public bool SetupSteamAfterInstall { get; set; } = true;
 
-    public bool ShownFirstLaunchGuide { get; set; }
-
     public async Task SaveAsync()
     {
         if (!Directory.Exists(AppDataPath))
         {
-            Directory.CreateDirectory(AppDataPath);
+            // 0700: this directory holds the Nexus API key and OAuth token.
+            Directory.CreateDirectory(
+                AppDataPath,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+            );
         }
+        // settings.json can carry the Nexus API key — keep it owner-only like the token file.
         await Services.AtomicFile.WriteAllTextAsync(
             SettingsPath,
-            JsonSerializer.Serialize(this, AppSettingsCtx.Default.AppSettings)
+            JsonSerializer.Serialize(this, AppSettingsCtx.Default.AppSettings),
+            unixCreateMode: UnixFileMode.UserRead | UnixFileMode.UserWrite
         );
     }
 
@@ -44,6 +48,19 @@ public class AppSettings
         if (!File.Exists(SettingsPath))
         {
             return new AppSettings();
+        }
+        // Tighten permissions left behind by older versions that wrote 0644/0755.
+        try
+        {
+            File.SetUnixFileMode(SettingsPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            File.SetUnixFileMode(
+                AppDataPath,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+            );
+        }
+        catch (IOException)
+        {
+            // best effort
         }
         try
         {

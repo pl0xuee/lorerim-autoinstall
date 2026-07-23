@@ -20,9 +20,22 @@ public class OAuthCallbackListener : IDisposable
     {
         get
         {
-            var runtimeDir =
-                Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR")
-                ?? Path.GetTempPath();
+            // Never a shared temp dir: in /tmp another local user could squat the socket
+            // (denying sign-in) or receive our OAuth callbacks. XDG_RUNTIME_DIR is 0700;
+            // the fallback is an equally private dir under the user's cache.
+            var runtimeDir = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
+            if (string.IsNullOrEmpty(runtimeDir))
+            {
+                runtimeDir = Path.Join(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".cache",
+                    "lorerim-autoinstall"
+                );
+                Directory.CreateDirectory(
+                    runtimeDir,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+                );
+            }
             return Path.Join(runtimeDir, "lorerim-autoinstall.sock");
         }
     }
@@ -44,6 +57,7 @@ public class OAuthCallbackListener : IDisposable
             _listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
             _listener.Bind(new UnixDomainSocketEndPoint(SocketPath));
             _listener.Listen(4);
+            _ownsSocket = true;
             _cts = new CancellationTokenSource();
             _ = AcceptLoopAsync(_cts.Token);
             return true;
@@ -123,16 +137,20 @@ public class OAuthCallbackListener : IDisposable
     {
         _cts?.Cancel();
         _listener?.Dispose();
-        try
+        if (_ownsSocket)
         {
-            File.Delete(SocketPath);
-        }
-        catch (IOException)
-        {
-            // fine
+            try
+            {
+                File.Delete(SocketPath);
+            }
+            catch (IOException)
+            {
+                // fine
+            }
         }
     }
 
     private Socket? _listener;
     private CancellationTokenSource? _cts;
+    private bool _ownsSocket;
 }

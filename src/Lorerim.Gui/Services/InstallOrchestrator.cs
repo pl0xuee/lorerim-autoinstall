@@ -118,9 +118,23 @@ public class InstallOrchestrator(
         {
             var info = await modlistResolver.ResolveLorerimAsync(ct);
             machineUrl = info.MachineUrl;
-            // Re-check space against real catalog numbers when available (with 10% headroom).
-            EnsureSpace(downloadDir, info.DownloadSizeBytes, PreflightService.RequiredDownloadBytes);
-            EnsureSpace(installDir, info.InstallSizeBytes, PreflightService.RequiredInstallBytes);
+            // Re-check space against real catalog numbers (10% headroom) using the same
+            // shared-volume-aware logic as preflight — separate per-dir checks can both pass
+            // while the sum runs a shared disk dry.
+            var spaceChecks = PreflightService.SpaceChecks(
+                installDir,
+                downloadDir,
+                Headroom(info.DownloadSizeBytes, PreflightService.RequiredDownloadBytes),
+                Headroom(info.InstallSizeBytes, PreflightService.RequiredInstallBytes)
+            );
+            var spaceFailure = spaceChecks.FirstOrDefault(c => c.State == CheckState.Fail);
+            if (spaceFailure is not null)
+            {
+                Report(InstallPhase.ResolveModlist, StepState.Failed, spaceFailure.Detail);
+                throw new InvalidOperationException(
+                    $"{spaceFailure.Name}: {spaceFailure.Detail}"
+                );
+            }
             Report(InstallPhase.ResolveModlist, StepState.Ok, $"{info.Title} ({info.MachineUrl})");
         }
 
@@ -187,44 +201,39 @@ public class InstallOrchestrator(
     private CompatTool? PickCompatTool(SteamInstallation steam)
     {
         var tools = compatTools.Scan(steam.Root);
+        var best = compatTools.PickBest(tools);
         var preferred = settingsService.Settings.PreferredProtonInternalName;
         if (!string.IsNullOrEmpty(preferred))
         {
             var match = tools.FirstOrDefault(t =>
                 t.InternalName.Equals(preferred, StringComparison.OrdinalIgnoreCase)
             );
-            if (match is not null)
+            if (match is null)
+            {
+                log.Append($"Preferred Proton '{preferred}' not found; falling back to best available.");
+            }
+            else if (
+                LorerimProton.Evaluate(match) == ProtonSuitability.Unsupported
+                && best is not null
+                && LorerimProton.Evaluate(best) != ProtonSuitability.Unsupported
+            )
+            {
+                // A pin must not override the one hard compatibility rule this app exists to
+                // enforce; the user can still see the substitution in the log.
+                log.Append(
+                    $"Preferred Proton '{preferred}' is known not to work with LoreRim; using {best.DisplayName} instead."
+                );
+            }
+            else
             {
                 return match;
             }
-            log.Append($"Preferred Proton '{preferred}' not found; falling back to best available.");
         }
-        return compatTools.PickBest(tools);
+        return best;
     }
 
-    private static void EnsureSpace(string dir, long? requiredFromCatalog, long fallback)
-    {
-        var required = requiredFromCatalog is { } r ? (long)(r * 1.1) : fallback;
-        try
-        {
-            var probe = dir;
-            while (!Directory.Exists(probe))
-            {
-                probe = Path.GetDirectoryName(probe) ?? "/";
-            }
-            var free = new DriveInfo(probe).AvailableFreeSpace;
-            if (free < required)
-            {
-                throw new InvalidOperationException(
-                    $"Not enough space at {dir}: {free / (1 << 30)} GB free, {required / (1 << 30)} GB needed."
-                );
-            }
-        }
-        catch (IOException)
-        {
-            // preflight already warned about unreadable drives
-        }
-    }
+    private static long Headroom(long? catalogBytes, long fallback) =>
+        catalogBytes is { } b ? (long)(b * 1.1) : fallback;
 
     private static string ExpandHome(string path) =>
         path.StartsWith("~/")

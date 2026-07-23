@@ -61,8 +61,9 @@ public partial class JackifyEngineRunner(
         p.BeginOutputReadLine();
         p.BeginErrorReadLine();
         p.StandardInput.Close();
+        var effectiveTimeout = timeout ?? TimeSpan.FromMinutes(5);
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(timeout ?? TimeSpan.FromMinutes(5));
+        timeoutCts.CancelAfter(effectiveTimeout);
         try
         {
             await p.WaitForExitAsync(timeoutCts.Token);
@@ -77,8 +78,17 @@ public partial class JackifyEngineRunner(
             {
                 // already exited
             }
-            throw;
+            if (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            // Internal deadline, not the caller cancelling — reporting it as OCE would make
+            // OperationRunner label a hung engine "cancelled" with no error surfaced.
+            throw new TimeoutException($"jackify-engine timed out after {effectiveTimeout}");
         }
+        // Sync WaitForExit (unlike the awaited one) drains the async output events, so the
+        // final line of --version/list-modlists output isn't occasionally lost.
+        p.WaitForExit();
         lock (output)
         {
             return (p.ExitCode, output.ToString());
@@ -109,7 +119,7 @@ public partial class JackifyEngineRunner(
         var psi = BuildStartInfo(args, req.AuthEnv);
         using var p = new Process();
         p.StartInfo = psi;
-        log.Append($"jackify-engine: {string.Join(' ', RedactedArgs(args))}");
+        log.Append($"jackify-engine: {string.Join(' ', args)}");
         if (!p.Start())
         {
             throw new EngineException("Failed to start jackify-engine");
@@ -392,8 +402,6 @@ public partial class JackifyEngineRunner(
         }
         return $"jackify-engine exited with code {exitCode} — see the log for details.";
     }
-
-    private static IEnumerable<string> RedactedArgs(IEnumerable<string> args) => args;
 
     private static string? GetString(JsonElement e, string name) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String

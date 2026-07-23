@@ -92,7 +92,7 @@ public class SteamIntegrationService(
         );
     }
 
-    /// <summary>STEAM_COMPAT_MOUNTS for any GAMMA path outside the home mount, always ending in %command%.</summary>
+    /// <summary>STEAM_COMPAT_MOUNTS for any LoreRim path outside the home mount, always ending in %command%.</summary>
     public static string BuildLaunchOptions(IEnumerable<string> paths)
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

@@ -9,6 +9,12 @@ public partial class SettingsView : UserControl
     {
         InitializeComponent();
         AttachedToVisualTree += (_, _) =>
-            (DataContext as SettingsViewModel)?.RefreshAuthState();
+        {
+            if (DataContext is SettingsViewModel vm)
+            {
+                vm.ReloadShared();
+                vm.RefreshAuthState();
+            }
+        };
     }
 }

@@ -20,6 +20,19 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     public partial string DownloadDir { get; set; }
 
+    // Shared with the Install page through the in-memory AppSettings object — sync on every
+    // change so switching pages never resurrects stale paths.
+    partial void OnInstallDirChanged(string value) => _settings.Settings.InstallDir = value;
+
+    partial void OnDownloadDirChanged(string value) => _settings.Settings.DownloadDir = value;
+
+    /// <summary>Re-sync from settings when the page is shown.</summary>
+    public void ReloadShared()
+    {
+        InstallDir = _settings.Settings.InstallDir;
+        DownloadDir = _settings.Settings.DownloadDir;
+    }
+
     [ObservableProperty]
     public partial string WabbajackFilePath { get; set; }
 
@@ -45,6 +58,18 @@ public partial class SettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial CompatTool? SelectedTool { get; set; }
+
+    // Only a deliberate ComboBox choice becomes a persisted pin. Programmatic selection
+    // (ctor, rescans) must not: pinning whatever was auto-picked would silently override
+    // the GE-Proton10-34 requirement the next time the user validates an API key or
+    // browses a folder (both of which save settings).
+    partial void OnSelectedToolChanged(CompatTool? value)
+    {
+        if (!_suppressProtonDirty && value is not null)
+        {
+            _protonTouched = true;
+        }
+    }
 
     [ObservableProperty]
     public partial string StatusText { get; set; } = "";
@@ -102,7 +127,10 @@ public partial class SettingsViewModel : ViewModelBase
         s.MachineUrlOverride = NullIfEmpty(MachineUrlOverride);
         s.SetupSteamAfterInstall = SetupSteamAfterInstall;
         s.NexusApiKey = NullIfEmpty(NexusApiKey);
-        s.PreferredProtonInternalName = SelectedTool?.InternalName;
+        if (_protonTouched)
+        {
+            s.PreferredProtonInternalName = SelectedTool?.InternalName;
+        }
         await _settings.SaveAsync();
         StatusText = $"Saved to {AppSettings.SettingsPath}";
         _log.Append("Settings saved");
@@ -142,14 +170,22 @@ public partial class SettingsViewModel : ViewModelBase
     private void RefreshProtonList()
     {
         var previous = SelectedTool?.InternalName ?? _settings.Settings.PreferredProtonInternalName;
-        CompatTools.Clear();
-        foreach (var tool in _compatToolCatalog.Scan(_steamLocator.Locate()?.Root))
+        _suppressProtonDirty = true;
+        try
         {
-            CompatTools.Add(tool);
+            CompatTools.Clear();
+            foreach (var tool in _compatToolCatalog.Scan(_steamLocator.Locate()?.Root))
+            {
+                CompatTools.Add(tool);
+            }
+            SelectedTool =
+                CompatTools.FirstOrDefault(t => t.InternalName == previous)
+                ?? CompatTools.FirstOrDefault();
         }
-        SelectedTool =
-            CompatTools.FirstOrDefault(t => t.InternalName == previous)
-            ?? CompatTools.FirstOrDefault();
+        finally
+        {
+            _suppressProtonDirty = false;
+        }
     }
 
     /// <summary>Validate a pasted API key against the Nexus users/validate endpoint.</summary>
@@ -293,13 +329,10 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private void OpenReleasePage()
     {
-        if (UpdateUrl is null)
+        if (!SafeUrl.TryOpenInBrowser(UpdateUrl))
         {
-            return;
+            _log.Append($"Refusing to open non-web URL: {UpdateUrl}");
         }
-        System.Diagnostics.Process.Start(
-            new System.Diagnostics.ProcessStartInfo { FileName = UpdateUrl, UseShellExecute = true }
-        );
     }
 
     private static string? NullIfEmpty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
@@ -312,4 +345,6 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly SteamLocator _steamLocator;
     private readonly CompatToolCatalog _compatToolCatalog;
     private AppUpdateCheck? _pendingUpdate;
+    private bool _protonTouched;
+    private bool _suppressProtonDirty;
 }

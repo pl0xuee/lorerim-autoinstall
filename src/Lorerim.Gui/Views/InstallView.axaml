@@ -151,7 +151,19 @@
                     <ItemsControl ItemsSource="{Binding ManualDownloads}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="eng:ManualDownload">
-                                <SelectableTextBlock Margin="0,2" Text="{Binding Url}"/>
+                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,3">
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}"
+                                               FontWeight="SemiBold" Margin="0,0,10,0"
+                                               VerticalAlignment="Center"/>
+                                    <SelectableTextBlock Grid.Column="1" Text="{Binding Url}"
+                                                         Classes="muted" VerticalAlignment="Center"
+                                                         TextWrapping="Wrap"/>
+                                    <Button Grid.Column="2" Content="Open" Padding="10,3"
+                                            Margin="8,0,0,0"
+                                            IsVisible="{Binding Url, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                            Command="{Binding $parent[ItemsControl].((vm:InstallViewModel)DataContext).OpenUrlCommand}"
+                                            CommandParameter="{Binding Url}"/>
+                                </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

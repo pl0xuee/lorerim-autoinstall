@@ -141,11 +141,15 @@ public partial class SteamSetupViewModel : ViewModelBase
         _mo2Exe = Path.Join(installDir, "ModOrganizer.exe");
         if (!File.Exists(_mo2Exe))
         {
-            _mo2Exe = Directory.Exists(installDir)
-                ? Directory
-                    .EnumerateFiles(installDir, "ModOrganizer.exe", SearchOption.AllDirectories)
-                    .FirstOrDefault()
-                : null;
+            // Off the UI thread: a populated LoreRim tree holds hundreds of thousands of
+            // files, and this continuation otherwise runs on the UI thread.
+            _mo2Exe = await Task.Run(() =>
+                Directory.Exists(installDir)
+                    ? Directory
+                        .EnumerateFiles(installDir, "ModOrganizer.exe", SearchOption.AllDirectories)
+                        .FirstOrDefault()
+                    : null
+            );
         }
         if (_mo2Exe is not null)
         {

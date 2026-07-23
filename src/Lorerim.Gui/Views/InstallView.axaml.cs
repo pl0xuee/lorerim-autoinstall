@@ -12,6 +12,7 @@ public partial class InstallView : UserControl
         {
             if (DataContext is InstallViewModel vm)
             {
+                vm.ReloadDirs();
                 vm.RefreshAuthStatus();
                 vm.EnsureCheckedOnce();
             }

@@ -34,7 +34,7 @@
         <Border DockPanel.Dock="Bottom" Height="190"
                 IsVisible="{Binding LogPaneOpen}"
                 BorderThickness="0,1,0,0" BorderBrush="{StaticResource RuneHairline}">
-            <ListBox Classes="log" ItemsSource="{Binding LogLines}"/>
+            <ListBox x:Name="LogList" Classes="log" ItemsSource="{Binding LogLines}"/>
         </Border>
 
         <!-- Rail -->

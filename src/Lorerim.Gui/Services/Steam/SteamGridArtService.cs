@@ -6,7 +6,7 @@ namespace Lorerim.Gui.Services.Steam;
 
 /// <summary>
 /// Installs the bundled shortcut artwork (Assets/SteamGrid, rendered by
-/// scripts/gen-steam-grid.sh) into Steam's per-user grid directory so the GAMMA
+/// scripts/gen-steam-grid.sh) into Steam's per-user grid directory so the LoreRim
 /// entry gets library capsules, hero, logo and icon instead of gray placeholders.
 /// </summary>
 public class SteamGridArtService(LogService log)

@@ -80,7 +80,18 @@ public class OperationRunner(IServiceProvider serviceProvider, LogService log)
         return result;
     }
 
-    public void Cancel() => _cts?.Cancel();
+    public void Cancel()
+    {
+        try
+        {
+            _cts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Raced the finally block disposing the CTS as the run wound down; the operation
+            // is over either way, so a late Cancel click is a no-op.
+        }
+    }
 
     private int _busy;
     private CancellationTokenSource? _cts;

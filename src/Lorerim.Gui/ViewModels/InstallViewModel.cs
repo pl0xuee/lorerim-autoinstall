@@ -43,6 +43,8 @@ public partial class PhaseRow(string name) : ObservableObject
     [ObservableProperty]
     public partial double Emphasis { get; set; } = 0.45;
 
+    public bool IsRunning => Glyph == "◐";
+
     public void Reset()
     {
         Glyph = PendingGlyph;
@@ -92,6 +94,20 @@ public partial class InstallViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial string DownloadDir { get; set; }
+
+    // The Settings page edits the same two paths; the in-memory AppSettings object is the
+    // single source of truth, updated on every keystroke so neither page can clobber the
+    // other with stale values (disk persistence still happens on explicit actions).
+    partial void OnInstallDirChanged(string value) => _settings.Settings.InstallDir = value;
+
+    partial void OnDownloadDirChanged(string value) => _settings.Settings.DownloadDir = value;
+
+    /// <summary>Re-sync from settings when the page is shown (the other page may have edited them).</summary>
+    public void ReloadDirs()
+    {
+        InstallDir = _settings.Settings.InstallDir;
+        DownloadDir = _settings.Settings.DownloadDir;
+    }
 
     [ObservableProperty]
     public partial string AuthStatus { get; set; } = "Not signed in";
@@ -192,7 +208,26 @@ public partial class InstallViewModel : ViewModelBase
         };
 
         runner.Started += _ => Dispatcher.UIThread.Post(() => IsBusy = true);
-        runner.Completed += (_, _) => Dispatcher.UIThread.Post(() => IsBusy = false);
+        runner.Completed += (_, result) =>
+            Dispatcher.UIThread.Post(() =>
+            {
+                IsBusy = false;
+                // The orchestrator may have signed the user in mid-run.
+                RefreshAuthStatus();
+                // Rows still marked running were interrupted: failed runs mark them failed,
+                // a cancelled run returns them to pending rather than spinning forever.
+                foreach (var row in Phases.Where(r => r.IsRunning))
+                {
+                    if (result.Outcome == OperationOutcome.Failed)
+                    {
+                        row.Apply(Services.Steam.StepState.Failed, "");
+                    }
+                    else
+                    {
+                        row.Reset();
+                    }
+                }
+            });
 
         RefreshAuthStatus();
     }
@@ -345,6 +380,17 @@ public partial class InstallViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void OpenUrl(string? url)
+    {
+        // The URL comes from engine stdout (untrusted): only ever hand the browser
+        // http(s), never arbitrary URI schemes with their own local handlers.
+        if (!Services.SafeUrl.TryOpenInBrowser(url))
+        {
+            _log.Append($"Refusing to open non-web URL: {url}");
+        }
+    }
+
+    [RelayCommand]
     private void ContinueManualDownloads()
     {
         ShowManualDownloads = false;
@@ -376,12 +422,7 @@ public partial class InstallViewModel : ViewModelBase
         }
     }
 
-    private async Task PersistDirsAsync()
-    {
-        _settings.Settings.InstallDir = InstallDir;
-        _settings.Settings.DownloadDir = DownloadDir;
-        await _settings.SaveAsync();
-    }
+    private Task PersistDirsAsync() => _settings.SaveAsync();
 
     private void ApplyProgressBatch(IList<EngineFileProgress> batch)
     {

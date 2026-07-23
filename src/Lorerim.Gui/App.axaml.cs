@@ -28,7 +28,15 @@ public partial class App : Application
         // Single-instance socket for OAuth callbacks; register the jackify:// handler so the
         // browser can reach us. Registration shells out to xdg tooling, so it runs in the
         // background rather than holding up the window.
-        Services.GetRequiredService<OAuthCallbackListener>().TryStart();
+        if (!Services.GetRequiredService<OAuthCallbackListener>().TryStart())
+        {
+            Services
+                .GetRequiredService<LogService>()
+                .Append(
+                    "Another instance already owns the sign-in callback socket — "
+                        + "Nexus sign-in only works in the first instance."
+                );
+        }
         _ = Services.GetRequiredService<ProtocolHandlerRegistrar>().EnsureRegisteredAsync();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -45,6 +53,15 @@ public partial class App : Application
     private static ServiceProvider BuildServices() =>
         new ServiceCollection()
             .AddHttpClient()
+            // GitHub's API rejects requests without a User-Agent, and this client both talks
+            // to api.github.com and downloads the update AppImage.
+            .ConfigureHttpClientDefaults(b =>
+                b.ConfigureHttpClient(c =>
+                    c.DefaultRequestHeaders.UserAgent.ParseAdd(
+                        $"lorerim-autoinstall/{AppUpdateService.CurrentVersion}"
+                    )
+                )
+            )
             .AddSingleton<SettingsService>()
             .AddSingleton<LogService>()
             .AddSingleton<OperationRunner>()
