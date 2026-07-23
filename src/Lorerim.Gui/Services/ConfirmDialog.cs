@@ -27,7 +27,7 @@ public static class ConfirmDialog
             SizeToContent = SizeToContent.Height,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = new SolidColorBrush(Color.Parse("#161C18")),
+            Background = new SolidColorBrush(Color.Parse("#131820")),
         };
 
         var confirm = new Button

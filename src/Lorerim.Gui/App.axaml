@@ -30,6 +30,11 @@
         <SolidColorBrush x:Key="RuneBrassBright" Color="{StaticResource RuneBrassBrightColor}"/>
         <SolidColorBrush x:Key="RuneFrost" Color="{StaticResource RuneFrostColor}"/>
 
+        <!-- Status colours: readable on the card tone, distinct without shouting -->
+        <SolidColorBrush x:Key="RuneOk" Color="#7FB069"/>
+        <SolidColorBrush x:Key="RuneWarn" Color="#D9A441"/>
+        <SolidColorBrush x:Key="RuneFail" Color="#D97056"/>
+
         <!-- Fluent accent → nordic brass (checkboxes, progress bars, selections) -->
         <Color x:Key="SystemAccentColor">#C9A05A</Color>
         <Color x:Key="SystemAccentColorDark1">#B58C48</Color>
@@ -84,19 +89,29 @@
             <Setter Property="Padding" Value="18,16"/>
         </Style>
 
-        <!-- Brass action button; dark text for contrast on brass -->
+        <!-- Brass action button. Fluent styles the inner ContentPresenter, so every state has
+             to be set there or the theme's own colours win and the label loses contrast. -->
         <Style Selector="Button.accent">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="20,10"/>
+        </Style>
+        <Style Selector="Button.accent /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{StaticResource RuneBrass}"/>
             <Setter Property="Foreground" Value="#15120C"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="3"/>
         </Style>
         <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{StaticResource RuneBrassBright}"/>
             <Setter Property="Foreground" Value="#15120C"/>
         </Style>
         <Style Selector="Button.accent:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource RuneBrassColor}"/>
+            <Setter Property="Background" Value="#A07938"/>
             <Setter Property="Foreground" Value="#15120C"/>
+        </Style>
+        <Style Selector="Button.accent:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#2A3340"/>
+            <Setter Property="Foreground" Value="{StaticResource RuneMuted}"/>
         </Style>
 
         <!-- Rail navigation -->

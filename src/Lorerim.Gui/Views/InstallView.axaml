@@ -1,7 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Lorerim.Gui.ViewModels"
-             xmlns:svc="using:Lorerim.Gui.Services"
              xmlns:eng="using:Lorerim.Gui.Services.Engine"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -9,61 +8,103 @@
              x:Class="Lorerim.Gui.Views.InstallView"
              x:DataType="vm:InstallViewModel">
 
-    <ScrollViewer>
-        <StackPanel Spacing="16" MaxWidth="860" HorizontalAlignment="Stretch">
+    <UserControl.Styles>
+        <!-- Status glyph tones for the preflight list -->
+        <Style Selector="TextBlock.glyph">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBlock.glyph.ok">
+            <Setter Property="Foreground" Value="{StaticResource RuneOk}"/>
+        </Style>
+        <Style Selector="TextBlock.glyph.warn">
+            <Setter Property="Foreground" Value="{StaticResource RuneWarn}"/>
+        </Style>
+        <Style Selector="TextBlock.glyph.fail">
+            <Setter Property="Foreground" Value="{StaticResource RuneFail}"/>
+        </Style>
+    </UserControl.Styles>
 
-            <StackPanel Spacing="2">
+    <ScrollViewer>
+        <StackPanel Spacing="14" MaxWidth="900" HorizontalAlignment="Left">
+
+            <StackPanel Spacing="3">
                 <TextBlock Classes="eyebrow" Text="ONE-CLICK DEPLOYMENT"/>
                 <TextBlock Classes="h1" Text="Install LoreRim"/>
                 <TextBlock Classes="muted" TextWrapping="Wrap"
-                           Text="Skyrim Anniversary Edition · ~250 GB of downloads · ~330 GB installed · Nexus Premium recommended"/>
+                           Text="Skyrim Anniversary Edition · ~250 GB downloaded · ~330 GB installed · hours unattended"/>
             </StackPanel>
 
             <!-- Hero: paths, auth, the one button -->
             <Border Classes="card-hero">
-                <StackPanel Spacing="12">
-                    <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,8,Auto">
+                <StackPanel Spacing="14">
+                    <Grid ColumnDefinitions="110,*,Auto" RowDefinitions="Auto,10,Auto">
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Install to" Classes="muted"
                                    VerticalAlignment="Center"/>
                         <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding InstallDir}"/>
+                        <Button Grid.Row="0" Grid.Column="2" Content="Browse…" Margin="8,0,0,0"
+                                Command="{Binding BrowseInstallDirCommand}"/>
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="Downloads" Classes="muted"
                                    VerticalAlignment="Center"/>
                         <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding DownloadDir}"/>
+                        <Button Grid.Row="2" Grid.Column="2" Content="Browse…" Margin="8,0,0,0"
+                                Command="{Binding BrowseDownloadDirCommand}"/>
                     </Grid>
 
-                    <DockPanel>
-                        <Button DockPanel.Dock="Right" Content="Sign in to Nexus"
-                                Command="{Binding SignInCommand}"
+                    <!-- Nexus status reads as one unit: dot, text, and the action beside it -->
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="●" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{StaticResource RuneOk}"
+                                   IsVisible="{Binding IsSignedIn}"/>
+                        <TextBlock Text="○" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{StaticResource RuneMuted}"
+                                   IsVisible="{Binding !IsSignedIn}"/>
+                        <TextBlock Text="{Binding AuthStatus}" VerticalAlignment="Center"/>
+                        <Button Content="Sign in to Nexus" Command="{Binding SignInCommand}"
                                 IsVisible="{Binding !IsSignedIn}"/>
-                        <TextBlock Text="{Binding AuthStatus}" VerticalAlignment="Center"
-                                   Classes="muted"/>
-                    </DockPanel>
-
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button Classes="accent" MinWidth="220" MinHeight="44"
-                                HorizontalContentAlignment="Center"
-                                Content="INSTALL LORERIM"
-                                Command="{Binding InstallCommand}"/>
-                        <Button Content="Run checks"
-                                VerticalAlignment="Center"
-                                Command="{Binding RunPreflightCommand}"/>
-                        <TextBlock Text="{Binding CheckResultText}" Classes="muted"
-                                   VerticalAlignment="Center" TextWrapping="Wrap"/>
                     </StackPanel>
-                    <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
-                               Text="Already installed? The same button updates or repairs LoreRim in place — only changed files are downloaded."/>
+
+                    <Rectangle Height="1" Fill="{StaticResource RuneHairline}"/>
+
+                    <StackPanel Orientation="Horizontal" Spacing="14">
+                        <Button Classes="accent" MinWidth="240" MinHeight="48"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                IsEnabled="{Binding CanInstall}"
+                                Command="{Binding InstallCommand}">
+                            <TextBlock Text="INSTALL LORERIM" FontSize="14" FontWeight="SemiBold"
+                                       LetterSpacing="2"/>
+                        </Button>
+                        <Button MinHeight="48" Padding="18,10" Content="Cancel"
+                                VerticalContentAlignment="Center"
+                                IsVisible="{Binding IsBusy}"
+                                Command="{Binding CancelCommand}"/>
+                        <StackPanel VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="{Binding CheckResultText}" TextWrapping="Wrap"/>
+                            <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                                       Text="Already installed? This same button updates or repairs it in place."/>
+                        </StackPanel>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
-            <!-- Preflight checklist -->
-            <Border Classes="card" IsVisible="{Binding !!Checks.Count}">
-                <StackPanel Spacing="6">
-                    <TextBlock Classes="eyebrow" Text="PREFLIGHT"/>
+            <!-- Preflight checklist: filled automatically when the page opens -->
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Re-check" Padding="12,4"
+                                Command="{Binding RunPreflightCommand}"/>
+                        <TextBlock Classes="eyebrow" Text="SYSTEM CHECKS" VerticalAlignment="Center"/>
+                    </DockPanel>
                     <ItemsControl ItemsSource="{Binding Checks}">
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="svc:PreflightCheck">
-                                <Grid ColumnDefinitions="60,180,*" Margin="0,2">
-                                    <TextBlock Grid.Column="0" Text="{Binding State}" Classes="mono"/>
+                            <DataTemplate x:DataType="vm:CheckRow">
+                                <Grid ColumnDefinitions="26,190,*" Margin="0,3">
+                                    <TextBlock Grid.Column="0" Text="{Binding Glyph}" Classes="glyph"
+                                               Classes.ok="{Binding IsOk}"
+                                               Classes.warn="{Binding IsWarn}"
+                                               Classes.fail="{Binding IsFail}"/>
                                     <TextBlock Grid.Column="1" Text="{Binding Name}"/>
                                     <TextBlock Grid.Column="2" Text="{Binding Detail}" Classes="muted"
                                                TextWrapping="Wrap"/>
@@ -76,17 +117,20 @@
 
             <!-- Install phases -->
             <Border Classes="card">
-                <StackPanel Spacing="6">
+                <StackPanel Spacing="8">
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Right" Text="{Binding OverallCounter}"
                                    Classes="mono muted"/>
-                        <TextBlock Classes="eyebrow" Text="PROGRESS"/>
+                        <TextBlock Classes="eyebrow" Text="INSTALL STEPS"/>
                     </DockPanel>
                     <ItemsControl ItemsSource="{Binding Phases}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:PhaseRow">
-                                <Grid ColumnDefinitions="24,300,*" Margin="0,2">
-                                    <TextBlock Grid.Column="0" Text="{Binding State}"/>
+                                <Grid ColumnDefinitions="26,280,*" Margin="0,3"
+                                      Opacity="{Binding Emphasis}">
+                                    <TextBlock Grid.Column="0" Text="{Binding Glyph}"
+                                               Width="20" TextAlignment="Center"
+                                               Foreground="{StaticResource RuneBrass}"/>
                                     <TextBlock Grid.Column="1" Text="{Binding Name}"/>
                                     <TextBlock Grid.Column="2" Text="{Binding Detail}" Classes="muted"
                                                TextWrapping="Wrap"/>
@@ -112,13 +156,14 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                     <Button Classes="accent" Content="I've downloaded them — continue"
-                            Command="{Binding ContinueManualDownloadsCommand}"/>
+                            Command="{Binding ContinueManualDownloadsCommand}"
+                            HorizontalAlignment="Left"/>
                 </StackPanel>
             </Border>
 
             <!-- Per-file progress grid -->
             <Border Classes="card" IsVisible="{Binding !!FileRows.Count}">
-                <StackPanel Spacing="6">
+                <StackPanel Spacing="8">
                     <TextBlock Classes="eyebrow" Text="FILES"/>
                     <DataGrid ItemsSource="{Binding FileRows}" Height="260"
                               IsReadOnly="True" AutoGenerateColumns="False">

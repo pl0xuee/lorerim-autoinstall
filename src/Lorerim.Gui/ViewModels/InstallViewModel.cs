@@ -32,17 +32,58 @@ public partial class PhaseRow(string name) : ObservableObject
 {
     public string Name { get; } = name;
 
+    /// <summary>Glyph column: pending until the orchestrator reports on this phase.</summary>
     [ObservableProperty]
-    public partial string State { get; set; } = "";
+    public partial string Glyph { get; set; } = PendingGlyph;
 
     [ObservableProperty]
     public partial string Detail { get; set; } = "";
+
+    /// <summary>Drives emphasis: pending phases sit back, the live one comes forward.</summary>
+    [ObservableProperty]
+    public partial double Emphasis { get; set; } = 0.45;
+
+    public void Reset()
+    {
+        Glyph = PendingGlyph;
+        Detail = "";
+        Emphasis = 0.45;
+    }
+
+    public void Apply(Services.Steam.StepState state, string detail)
+    {
+        (Glyph, Emphasis) = state switch
+        {
+            Services.Steam.StepState.Running => ("◐", 1.0),
+            Services.Steam.StepState.Ok => ("✓", 0.8),
+            _ => ("✕", 1.0),
+        };
+        Detail = detail;
+    }
+
+    private const string PendingGlyph = "○";
+}
+
+/// <summary>A preflight result dressed for display (glyph + colour key).</summary>
+public sealed record CheckRow(string Name, string Detail, string Glyph, string Tone)
+{
+    public static CheckRow From(PreflightCheck c) =>
+        c.State switch
+        {
+            CheckState.Ok => new CheckRow(c.Name, c.Detail, "✓", "ok"),
+            CheckState.Warn => new CheckRow(c.Name, c.Detail, "!", "warn"),
+            _ => new CheckRow(c.Name, c.Detail, "✕", "fail"),
+        };
+
+    public bool IsOk => Tone == "ok";
+    public bool IsWarn => Tone == "warn";
+    public bool IsFail => Tone == "fail";
 }
 
 public partial class InstallViewModel : ViewModelBase
 {
     public ObservableCollection<FileProgressRow> FileRows { get; } = [];
-    public ObservableCollection<PreflightCheck> Checks { get; } = [];
+    public ObservableCollection<CheckRow> Checks { get; } = [];
     public ObservableCollection<PhaseRow> Phases { get; } = [];
     public ObservableCollection<ManualDownload> ManualDownloads { get; } = [];
 
@@ -69,6 +110,13 @@ public partial class InstallViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial string CheckResultText { get; set; } = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanInstall))]
+    public partial bool IsBusy { get; set; }
+
+    /// <summary>The primary button is dead while a run owns the app.</summary>
+    public bool CanInstall => !IsBusy;
 
     public InstallViewModel(
         OperationRunner runner,
@@ -123,14 +171,7 @@ public partial class InstallViewModel : ViewModelBase
         orchestrator.PhaseChanged += change =>
             Dispatcher.UIThread.Post(() =>
             {
-                var row = Phases[(int)change.Phase];
-                row.State = change.State switch
-                {
-                    Services.Steam.StepState.Running => "…",
-                    Services.Steam.StepState.Ok => "✅",
-                    _ => "❌",
-                };
-                row.Detail = change.Detail;
+                Phases[(int)change.Phase].Apply(change.State, change.Detail);
                 if (change.Phase == InstallPhase.Done && change.State == Services.Steam.StepState.Ok)
                 {
                     ShowFirstLaunchGuide = true;
@@ -149,6 +190,9 @@ public partial class InstallViewModel : ViewModelBase
                 }
             );
         };
+
+        runner.Started += _ => Dispatcher.UIThread.Post(() => IsBusy = true);
+        runner.Completed += (_, _) => Dispatcher.UIThread.Post(() => IsBusy = false);
 
         RefreshAuthStatus();
     }
@@ -179,13 +223,34 @@ public partial class InstallViewModel : ViewModelBase
             ShowFirstLaunchGuide = false;
             foreach (var p in Phases)
             {
-                p.State = "";
-                p.Detail = "";
+                p.Reset();
             }
         });
         _rowLookup.Clear();
 
         await _runner.RunAsync("LoreRim install", (_, ct) => _orchestrator.RunAsync(ct));
+    }
+
+    [RelayCommand]
+    private async Task BrowseInstallDirAsync()
+    {
+        if (await FolderPicker.PickFolderAsync("Choose the LoreRim install folder", InstallDir) is { } picked)
+        {
+            InstallDir = picked;
+            await PersistDirsAsync();
+            await RefreshChecksAsync();
+        }
+    }
+
+    [RelayCommand]
+    private async Task BrowseDownloadDirAsync()
+    {
+        if (await FolderPicker.PickFolderAsync("Choose the downloads folder", DownloadDir) is { } picked)
+        {
+            DownloadDir = picked;
+            await PersistDirsAsync();
+            await RefreshChecksAsync();
+        }
     }
 
     [RelayCommand]
@@ -196,6 +261,20 @@ public partial class InstallViewModel : ViewModelBase
             return;
         }
         await PersistDirsAsync();
+        await RefreshChecksAsync();
+    }
+
+    /// <summary>
+    /// Runs preflight and fills the checklist. Called on demand and once when the page is
+    /// first shown, so the user sees their system state without having to ask for it.
+    /// </summary>
+    public async Task RefreshChecksAsync()
+    {
+        if (_checking)
+        {
+            return;
+        }
+        _checking = true;
         CheckResultText = "Checking…";
         try
         {
@@ -209,17 +288,36 @@ public partial class InstallViewModel : ViewModelBase
                 Checks.Clear();
                 foreach (var c in checks)
                 {
-                    Checks.Add(c);
+                    Checks.Add(CheckRow.From(c));
                 }
-                CheckResultText = checks.Any(c => c.State == CheckState.Fail)
-                    ? "Some checks failed — fix them before installing."
-                    : "All checks passed.";
+                var failed = checks.Count(c => c.State == CheckState.Fail);
+                var warned = checks.Count(c => c.State == CheckState.Warn);
+                CheckResultText = failed > 0
+                    ? $"{failed} blocking issue{(failed == 1 ? "" : "s")} — fix before installing."
+                    : warned > 0
+                        ? $"Ready, with {warned} thing{(warned == 1 ? "" : "s")} worth reading."
+                        : "Everything checks out.";
             });
         }
         catch (Exception e)
         {
             CheckResultText = $"Preflight error: {e.Message}";
         }
+        finally
+        {
+            _checking = false;
+        }
+    }
+
+    /// <summary>Kick off the first check when the page appears; failures surface in the list.</summary>
+    public void EnsureCheckedOnce()
+    {
+        if (_checkedOnce)
+        {
+            return;
+        }
+        _checkedOnce = true;
+        _ = RefreshChecksAsync();
     }
 
     [RelayCommand]
@@ -325,4 +423,6 @@ public partial class InstallViewModel : ViewModelBase
     private readonly JackifyEngineRunner _engineRunner;
     private readonly Dictionary<string, FileProgressRow> _rowLookup = [];
     private bool _signInBusy;
+    private bool _checking;
+    private bool _checkedOnce;
 }

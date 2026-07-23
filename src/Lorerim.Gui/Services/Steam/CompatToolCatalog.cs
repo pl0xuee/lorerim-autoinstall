@@ -13,9 +13,9 @@ public sealed record CompatTool(string InternalName, string DisplayName, string 
 }
 
 /// <summary>
-/// Scans compatibilitytools.d directories for installed Proton builds and ranks them:
-/// newest GE-Proton* first (LoreRim's ENB needs GE), then newest proton-cachyos*, then
-/// anything else.
+/// Scans compatibilitytools.d directories for installed Proton builds and ranks them by
+/// LoreRim suitability (see <see cref="LorerimProton"/>): the tested GE-Proton10-34 first,
+/// then the rest of that GE line, then other GE builds, then everything else.
 /// </summary>
 public partial class CompatToolCatalog
 {
@@ -68,10 +68,7 @@ public partial class CompatToolCatalog
 
     public CompatTool? PickBest(List<CompatTool> tools) => tools.FirstOrDefault();
 
-    private static int Rank(CompatTool t) =>
-        t.InternalName.StartsWith("GE-Proton", StringComparison.OrdinalIgnoreCase) ? 0
-        : t.InternalName.StartsWith("proton-cachyos", StringComparison.OrdinalIgnoreCase) ? 1
-        : 2;
+    private static int Rank(CompatTool t) => LorerimProton.Rank(t);
 
     // long, and clamp on overflow: a date-stamped build (GE-Proton-20250101120000) exceeds
     // int range and would otherwise throw OverflowException, crashing the Steam page.

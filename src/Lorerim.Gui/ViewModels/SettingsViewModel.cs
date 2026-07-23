@@ -109,6 +109,36 @@ public partial class SettingsViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private async Task BrowseInstallDirAsync()
+    {
+        if (await FolderPicker.PickFolderAsync("Choose the LoreRim install folder", InstallDir) is { } picked)
+        {
+            InstallDir = picked;
+            await SaveAsync();
+        }
+    }
+
+    [RelayCommand]
+    private async Task BrowseDownloadDirAsync()
+    {
+        if (await FolderPicker.PickFolderAsync("Choose the downloads folder", DownloadDir) is { } picked)
+        {
+            DownloadDir = picked;
+            await SaveAsync();
+        }
+    }
+
+    [RelayCommand]
+    private async Task BrowseWabbajackFileAsync()
+    {
+        if (await FolderPicker.PickWabbajackFileAsync(WabbajackFilePath) is { } picked)
+        {
+            WabbajackFilePath = picked;
+            await SaveAsync();
+        }
+    }
+
+    [RelayCommand]
     private void RefreshProtonList()
     {
         var previous = SelectedTool?.InternalName ?? _settings.Settings.PreferredProtonInternalName;

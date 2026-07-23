@@ -9,6 +9,12 @@ public partial class InstallView : UserControl
     {
         InitializeComponent();
         AttachedToVisualTree += (_, _) =>
-            (DataContext as InstallViewModel)?.RefreshAuthStatus();
+        {
+            if (DataContext is InstallViewModel vm)
+            {
+                vm.RefreshAuthStatus();
+                vm.EnsureCheckedOnce();
+            }
+        };
     }
 }

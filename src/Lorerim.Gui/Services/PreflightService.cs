@@ -81,25 +81,9 @@ public class PreflightService(
                 )
         );
 
-        var tools = compatTools.Scan(steam?.Root);
-        checks.Add(
-            tools.Count == 0
-                ? new PreflightCheck(
-                    "Proton",
-                    CheckState.Fail,
-                    "No Proton found in compatibilitytools.d. Install GE-Proton (e.g. with ProtonUp-Qt)."
-                )
-                : tools[0].InternalName.StartsWith("GE-Proton", StringComparison.OrdinalIgnoreCase)
-                    ? new PreflightCheck("Proton", CheckState.Ok, tools[0].DisplayName)
-                    : new PreflightCheck(
-                        "Proton",
-                        CheckState.Warn,
-                        $"{tools[0].DisplayName} found; GE-Proton is recommended for LoreRim's ENB."
-                    )
-        );
+        checks.Add(ProtonCheck(compatTools.Scan(steam?.Root)));
 
-        checks.Add(DiskCheck("Download space", downloadDir, RequiredDownloadBytes));
-        checks.Add(DiskCheck("Install space", installDir, RequiredInstallBytes));
+        checks.AddRange(SpaceChecks(installDir, downloadDir));
         checks.Add(RotationalCheck(installDir));
 
         checks.Add(await EngineCheckAsync(ct));
@@ -107,26 +91,160 @@ public class PreflightService(
         return checks;
     }
 
-    private static PreflightCheck DiskCheck(string name, string dir, long required)
+    /// <summary>
+    /// LoreRim pins GE-Proton10-34 for ENB; anything else is reported with the reason so the
+    /// user can install the right build before the Steam shortcut is created.
+    /// </summary>
+    private static PreflightCheck ProtonCheck(List<CompatTool> tools)
+    {
+        if (tools.Count == 0)
+        {
+            return new PreflightCheck("Proton", CheckState.Fail, LorerimProton.Guidance);
+        }
+        var (suitability, best) = LorerimProton.Best(tools);
+        return suitability switch
+        {
+            ProtonSuitability.Required => new PreflightCheck(
+                "Proton",
+                CheckState.Ok,
+                $"{best!.DisplayName} — {LorerimProton.Describe(suitability)}"
+            ),
+            ProtonSuitability.Compatible => new PreflightCheck(
+                "Proton",
+                CheckState.Warn,
+                $"{best!.DisplayName} — {LorerimProton.Describe(suitability)}. {LorerimProton.Guidance}"
+            ),
+            _ => new PreflightCheck(
+                "Proton",
+                CheckState.Warn,
+                $"Best available is {best!.DisplayName} — {LorerimProton.Describe(suitability)}. "
+                    + LorerimProton.Guidance
+            ),
+        };
+    }
+
+    /// <summary>
+    /// Space checks. When both folders live on the same filesystem their requirements add up,
+    /// so they must be checked together — two independent checks can each pass while the
+    /// install still runs the disk dry partway through.
+    /// </summary>
+    private static List<PreflightCheck> SpaceChecks(string installDir, string downloadDir)
     {
         try
         {
-            var probe = FindExistingAncestor(dir);
-            var free = new DriveInfo(probe).AvailableFreeSpace;
-            var freeGb = free / (1024.0 * 1024 * 1024);
-            var requiredGb = required / (1024.0 * 1024 * 1024);
-            return free >= required
-                ? new PreflightCheck(name, CheckState.Ok, $"{freeGb:F0} GB free")
-                : new PreflightCheck(
-                    name,
-                    CheckState.Fail,
-                    $"{freeGb:F0} GB free, {requiredGb:F0} GB needed at {dir}"
-                );
+            var installVolume = VolumeFor(installDir);
+            var downloadVolume = VolumeFor(downloadDir);
+            if (installVolume is null || downloadVolume is null)
+            {
+                return
+                [
+                    new PreflightCheck(
+                        "Disk space",
+                        CheckState.Warn,
+                        "Could not determine which drive these folders are on."
+                    ),
+                ];
+            }
+            if (
+                string.Equals(
+                    installVolume.RootDirectory.FullName,
+                    downloadVolume.RootDirectory.FullName,
+                    StringComparison.Ordinal
+                )
+            )
+            {
+                return
+                [
+                    BuildSpaceCheck(
+                        "Disk space",
+                        installVolume.AvailableFreeSpace,
+                        RequiredDownloadBytes + RequiredInstallBytes,
+                        $"{installVolume.RootDirectory.FullName} (downloads and install share it)"
+                    ),
+                ];
+            }
+            return
+            [
+                BuildSpaceCheck(
+                    "Download space",
+                    downloadVolume.AvailableFreeSpace,
+                    RequiredDownloadBytes,
+                    downloadVolume.RootDirectory.FullName
+                ),
+                BuildSpaceCheck(
+                    "Install space",
+                    installVolume.AvailableFreeSpace,
+                    RequiredInstallBytes,
+                    installVolume.RootDirectory.FullName
+                ),
+            ];
         }
         catch (Exception e)
         {
-            return new PreflightCheck(name, CheckState.Warn, $"Could not check {dir}: {e.Message}");
+            return [new PreflightCheck("Disk space", CheckState.Warn, $"Could not check: {e.Message}")];
         }
+    }
+
+    /// <summary>
+    /// The mounted filesystem holding <paramref name="path"/>. DriveInfo(path) just echoes the
+    /// path back on Unix, so identify the volume by longest mount-point prefix instead —
+    /// otherwise two folders on one disk look like two independent budgets.
+    /// </summary>
+    private static DriveInfo? VolumeFor(string path)
+    {
+        var full = Path.GetFullPath(path);
+        DriveInfo? best = null;
+        var bestLength = -1;
+        foreach (var drive in DriveInfo.GetDrives())
+        {
+            string root;
+            try
+            {
+                root = drive.RootDirectory.FullName;
+                _ = drive.AvailableFreeSpace; // skip pseudo/unreadable filesystems
+            }
+            catch (Exception)
+            {
+                continue;
+            }
+            if (!IsUnder(full, root) || root.Length <= bestLength)
+            {
+                continue;
+            }
+            best = drive;
+            bestLength = root.Length;
+        }
+        return best;
+    }
+
+    /// <summary>Prefix match on directory boundaries, so /mnt/Games2 isn't "under" /mnt/Games.</summary>
+    internal static bool IsUnder(string path, string root)
+    {
+        if (string.Equals(path, root, StringComparison.Ordinal))
+        {
+            return true;
+        }
+        var prefix = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
+        return path.StartsWith(prefix, StringComparison.Ordinal);
+    }
+
+    internal static PreflightCheck BuildSpaceCheck(
+        string name,
+        long free,
+        long required,
+        string where
+    )
+    {
+        var freeGb = free / (1024.0 * 1024 * 1024);
+        var requiredGb = required / (1024.0 * 1024 * 1024);
+        return free >= required
+            ? new PreflightCheck(name, CheckState.Ok, $"{freeGb:F0} GB free on {where}")
+            : new PreflightCheck(
+                name,
+                CheckState.Fail,
+                $"{freeGb:F0} GB free on {where}, {requiredGb:F0} GB needed — "
+                    + "point one of the folders at another drive, or free up space"
+            );
     }
 
     /// <summary>Warn when the install dir sits on a rotational disk — LoreRim wants an SSD.</summary>

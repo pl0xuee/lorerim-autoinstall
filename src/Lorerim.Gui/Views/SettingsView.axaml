@@ -15,9 +15,17 @@
                 <StackPanel Spacing="8">
                     <TextBlock Classes="eyebrow" Text="DIRECTORIES"/>
                     <TextBlock Text="Install directory (needs ~330 GB on an SSD)"/>
-                    <TextBox Text="{Binding InstallDir}"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding InstallDir}"/>
+                        <Button Grid.Column="1" Content="Browse…" Margin="8,0,0,0"
+                                Command="{Binding BrowseInstallDirCommand}"/>
+                    </Grid>
                     <TextBlock Text="Download directory (needs ~250 GB; deletable after install)"/>
-                    <TextBox Text="{Binding DownloadDir}"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding DownloadDir}"/>
+                        <Button Grid.Column="1" Content="Browse…" Margin="8,0,0,0"
+                                Command="{Binding BrowseDownloadDirCommand}"/>
+                    </Grid>
                     <CheckBox Content="Set up Steam automatically after installing"
                               IsChecked="{Binding SetupSteamAfterInstall}"/>
                 </StackPanel>
@@ -48,7 +56,11 @@
                         <Button Content="Rescan" Command="{Binding RefreshProtonListCommand}"/>
                     </StackPanel>
                     <TextBlock Text="Local .wabbajack file (leave empty to download automatically)"/>
-                    <TextBox Text="{Binding WabbajackFilePath}"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding WabbajackFilePath}"/>
+                        <Button Grid.Column="1" Content="Browse…" Margin="8,0,0,0"
+                                Command="{Binding BrowseWabbajackFileCommand}"/>
+                    </Grid>
                     <TextBlock Text="Machine URL override (leave empty for LoreRim)"/>
                     <TextBox Text="{Binding MachineUrlOverride}"/>
                 </StackPanel>
