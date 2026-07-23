@@ -25,10 +25,11 @@ public partial class App : Application
     {
         Services = BuildServices();
 
-        // Single-instance socket for OAuth callbacks; register the jackify:// handler so
-        // the browser can reach us. Both are safe to re-run every start.
+        // Single-instance socket for OAuth callbacks; register the jackify:// handler so the
+        // browser can reach us. Registration shells out to xdg tooling, so it runs in the
+        // background rather than holding up the window.
         Services.GetRequiredService<OAuthCallbackListener>().TryStart();
-        Services.GetRequiredService<ProtocolHandlerRegistrar>().EnsureRegistered();
+        _ = Services.GetRequiredService<ProtocolHandlerRegistrar>().EnsureRegisteredAsync();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {

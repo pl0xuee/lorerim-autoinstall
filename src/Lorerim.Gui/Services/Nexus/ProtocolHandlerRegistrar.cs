@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Lorerim.Gui.Services.Nexus;
 
@@ -8,13 +10,19 @@ namespace Lorerim.Gui.Services.Nexus;
 /// Registers this app as the xdg handler for the jackify:// scheme (the Nexus OAuth client
 /// "jackify" pins its redirect URI to jackify://oauth/callback, so the scheme is fixed).
 /// Re-run on every startup: the AppImage path changes between versions.
+///
+/// Always call this off the UI thread — it shells out to update-desktop-database, xdg-mime
+/// and xdg-settings, and xdg-settings in particular can take seconds on KDE.
 /// </summary>
 public class ProtocolHandlerRegistrar(LogService log)
 {
     public const string Scheme = "jackify";
     private const string DesktopFileName = "lorerim-autoinstall-oauth.desktop";
 
-    public void EnsureRegistered()
+    /// <summary>Registers the handler on a background thread. Safe to call repeatedly.</summary>
+    public Task EnsureRegisteredAsync() => Task.Run(EnsureRegistered);
+
+    private void EnsureRegistered()
     {
         if (!OperatingSystem.IsLinux())
         {
@@ -22,13 +30,14 @@ public class ProtocolHandlerRegistrar(LogService log)
         }
         try
         {
-            var appsDir = Path.Join(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "..",
-                "share",
-                "applications"
+            var appsDir = Path.GetFullPath(
+                Path.Join(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "..",
+                    "share",
+                    "applications"
+                )
             );
-            appsDir = Path.GetFullPath(appsDir);
             Directory.CreateDirectory(appsDir);
             var desktopFile = Path.Join(appsDir, DesktopFileName);
 
@@ -48,21 +57,18 @@ public class ProtocolHandlerRegistrar(LogService log)
                 Categories=Game;Utility;
                 MimeType=x-scheme-handler/{Scheme};
                 """;
-            if (!File.Exists(desktopFile) || File.ReadAllText(desktopFile) != content)
+
+            // Only re-register when something actually changed; the xdg calls are the slow part.
+            if (File.Exists(desktopFile) && File.ReadAllText(desktopFile) == content)
             {
-                File.WriteAllText(desktopFile, content);
-                log.Append($"Registered {Scheme}:// handler at {desktopFile}");
+                return;
             }
 
+            File.WriteAllText(desktopFile, content);
             RunQuiet("update-desktop-database", appsDir);
             RunQuiet("xdg-mime", "default", DesktopFileName, $"x-scheme-handler/{Scheme}");
-            RunQuiet(
-                "xdg-settings",
-                "set",
-                "default-url-scheme-handler",
-                Scheme,
-                DesktopFileName
-            );
+            RunQuiet("xdg-settings", "set", "default-url-scheme-handler", Scheme, DesktopFileName);
+            log.Append($"Registered {Scheme}:// handler at {desktopFile}");
         }
         catch (Exception e)
         {
@@ -86,11 +92,18 @@ public class ProtocolHandlerRegistrar(LogService log)
                 psi.ArgumentList.Add(a);
             }
             using var p = Process.Start(psi);
-            p?.WaitForExit(10_000);
+            if (p is null)
+            {
+                return;
+            }
+            if (!p.WaitForExit(5_000))
+            {
+                p.Kill(entireProcessTree: true);
+            }
         }
         catch
         {
-            // xdg tooling missing is non-fatal; mimeapps association may still work
+            // xdg tooling missing is non-fatal; the desktop file alone often suffices
         }
     }
 }

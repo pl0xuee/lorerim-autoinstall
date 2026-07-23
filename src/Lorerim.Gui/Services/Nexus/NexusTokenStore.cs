@@ -38,7 +38,9 @@ public class NexusTokenStore(LogService log)
     {
         Directory.CreateDirectory(AppSettings.AppDataPath);
         var json = JsonSerializer.Serialize(token, OAuthTokenStateCtx.Default.OAuthTokenState);
-        AtomicFile.WriteAllTextAsync(TokenPath, json).GetAwaiter().GetResult();
+        // Synchronous write: this is called from the UI thread after the OAuth callback, and
+        // blocking on the async writer there deadlocks (its continuation needs that thread).
+        AtomicFile.WriteAllText(TokenPath, json);
         File.SetUnixFileMode(TokenPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
     }
 

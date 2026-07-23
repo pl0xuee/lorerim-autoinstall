@@ -34,7 +34,8 @@ public class NexusOAuthService(
     /// <summary>Runs the full browser flow and persists the token. Returns the token or null.</summary>
     public async Task<OAuthTokenState?> AuthorizeAsync(CancellationToken ct)
     {
-        registrar.EnsureRegistered();
+        // Off the UI thread: this shells out to xdg tooling that can block for seconds.
+        await registrar.EnsureRegisteredAsync();
 
         var verifier = Base64Url(RandomNumberGenerator.GetBytes(32));
         var challenge = Base64Url(SHA256.HashData(System.Text.Encoding.ASCII.GetBytes(verifier)));
