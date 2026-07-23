@@ -28,6 +28,12 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     public partial double OverallProgress { get; set; }
 
+    // True while we know work is happening but have no numeric total to show a real fraction
+    // (an engine version that omits the file counter, or a non-engine phase like Steam setup).
+    // The bar animates instead of sitting frozen at zero.
+    [ObservableProperty]
+    public partial bool ProgressIsIndeterminate { get; set; }
+
     [ObservableProperty]
     public partial bool LogPaneOpen { get; set; }
 
@@ -77,6 +83,9 @@ public partial class MainViewModel : ViewModelBase
             {
                 IsBusy = true;
                 OverallProgress = 0;
+                // Start animating right away: many phases (Steam setup, protontricks) never emit
+                // a file counter, so an indeterminate bar is the honest default until one arrives.
+                ProgressIsIndeterminate = true;
                 StatusText = $"{name}…";
             });
         runner.Completed += (name, result) =>
@@ -111,9 +120,11 @@ public partial class MainViewModel : ViewModelBase
                     }
                     var counter = e.Index is { } i && e.Total is { } t ? $" [{i}/{t}]" : "";
                     StatusText = $"{e.Operation}: {e.FileName} {e.Percent:F0}%{counter}";
-                    if (e.Index is { } idx && e.Total is { } total && total > 0)
+                    var progress = EngineOverallProgress.From(e);
+                    ProgressIsIndeterminate = progress.Indeterminate;
+                    if (!progress.Indeterminate)
                     {
-                        OverallProgress = (double)idx / total;
+                        OverallProgress = progress.Fraction;
                     }
                 })
             );

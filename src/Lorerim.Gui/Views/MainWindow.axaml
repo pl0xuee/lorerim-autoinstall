@@ -23,6 +23,7 @@
                 <ProgressBar DockPanel.Dock="Right" Width="200" Height="10"
                              Minimum="0" Maximum="1"
                              Value="{Binding OverallProgress}"
+                             IsIndeterminate="{Binding ProgressIsIndeterminate}"
                              IsVisible="{Binding IsBusy}" Margin="12,0,0,0"/>
                 <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center"
                            Classes="mono" Foreground="{StaticResource RuneMuted}"
