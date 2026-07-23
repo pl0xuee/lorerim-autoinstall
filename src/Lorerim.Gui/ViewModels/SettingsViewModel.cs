@@ -106,6 +106,16 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     public partial ResolutionOption? SelectedResolution { get; set; }
 
+    // Unlike the Proton pin, a null selection is a deliberate choice here — "leave as the
+    // modlist ships" — so it counts as touched too. Only programmatic refreshes are excluded.
+    partial void OnSelectedResolutionChanged(ResolutionOption? value)
+    {
+        if (!_suppressResolutionDirty)
+        {
+            _resolutionTouched = true;
+        }
+    }
+
     [ObservableProperty]
     public partial string ResolutionStatus { get; set; } = "";
 
@@ -191,7 +201,15 @@ public partial class SettingsViewModel : ViewModelBase
         {
             Resolutions.Add(option);
         }
-        SelectedResolution = ResolutionOption.Select(Resolutions, stored);
+        _suppressResolutionDirty = true;
+        try
+        {
+            SelectedResolution = ResolutionOption.Select(Resolutions, stored);
+        }
+        finally
+        {
+            _suppressResolutionDirty = false;
+        }
         ResolutionStatus = DescribeResolution(choices);
     }
 
@@ -199,6 +217,14 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private async Task ApplyResolutionAsync()
     {
+        // This page is built once at startup, so a resolution chosen on the install page since
+        // then is not reflected here. Re-sync unless the user has made a choice of their own,
+        // which must not be discarded.
+        if (!_resolutionTouched)
+        {
+            RefreshResolutions();
+        }
+
         var installDir = AppSettings.ExpandHome(InstallDir);
         if (!Directory.Exists(Path.Join(installDir, "profiles")))
         {
@@ -259,7 +285,13 @@ public partial class SettingsViewModel : ViewModelBase
         s.MachineUrlOverride = NullIfEmpty(MachineUrlOverride);
         s.SetupSteamAfterInstall = SetupSteamAfterInstall;
         s.NexusApiKey = NullIfEmpty(NexusApiKey);
-        s.PreferredResolution = SelectedResolution?.Value;
+        // Guarded for the same reason as the Proton pin below: this page is a singleton built
+        // at startup, so a stale selection would otherwise overwrite a resolution chosen on
+        // the install page the next time any unrelated action here saves settings.
+        if (_resolutionTouched)
+        {
+            s.PreferredResolution = SelectedResolution?.Value;
+        }
         if (_protonTouched)
         {
             s.PreferredProtonInternalName = SelectedTool?.InternalName;
@@ -481,4 +513,6 @@ public partial class SettingsViewModel : ViewModelBase
     private AppUpdateCheck? _pendingUpdate;
     private bool _protonTouched;
     private bool _suppressProtonDirty;
+    private bool _resolutionTouched;
+    private bool _suppressResolutionDirty;
 }
