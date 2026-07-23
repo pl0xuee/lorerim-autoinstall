@@ -50,7 +50,13 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    private static ServiceProvider BuildServices() =>
+    private static ServiceProvider BuildServices() => Registrations().BuildServiceProvider();
+
+    /// <summary>
+    /// Every registration the app needs. Exposed so a test can validate the graph resolves
+    /// without constructing anything — building the real provider writes to the user's log.
+    /// </summary>
+    internal static IServiceCollection Registrations() =>
         new ServiceCollection()
             .AddHttpClient()
             // GitHub's API rejects requests without a User-Agent, and this client both talks
@@ -79,7 +85,10 @@ public partial class App : Application
             .AddSingleton<OAuthCallbackListener>()
             .AddSingleton<Services.Steam.SteamLocator>()
             .AddSingleton<Services.Steam.SkyrimLocator>()
-            .AddSingleton<Services.Steam.CompatToolCatalog>()
+            // Constructed explicitly: the well-known-directories parameter is optional so
+            // tests can scan a fixture, and the container must not try to resolve it.
+            .AddSingleton(_ => new Services.Steam.CompatToolCatalog())
+            .AddSingleton<Services.Steam.SteamRuntimeCatalog>()
             .AddSingleton<Services.Steam.ShortcutsVdfService>()
             .AddSingleton<Services.Steam.ConfigVdfService>()
             .AddSingleton<Services.Steam.SteamProcessService>()
@@ -90,6 +99,5 @@ public partial class App : Application
             .AddSingleton<MainViewModel>()
             .AddSingleton<InstallViewModel>()
             .AddSingleton<SettingsViewModel>()
-            .AddSingleton<SteamSetupViewModel>()
-            .BuildServiceProvider();
+            .AddSingleton<SteamSetupViewModel>();
 }

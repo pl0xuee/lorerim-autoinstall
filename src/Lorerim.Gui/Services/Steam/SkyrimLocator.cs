@@ -22,7 +22,7 @@ public partial class SkyrimLocator(SteamLocator steamLocator)
         {
             return null;
         }
-        foreach (var library in EnumerateLibraries(steam.Root))
+        foreach (var library in SteamLibraries.Enumerate(steam.Root))
         {
             var manifest = Path.Join(library, "steamapps", $"appmanifest_{AppId}.acf");
             if (!File.Exists(manifest))
@@ -64,39 +64,9 @@ public partial class SkyrimLocator(SteamLocator steamLocator)
         return null;
     }
 
-    private static IEnumerable<string> EnumerateLibraries(string steamRoot)
-    {
-        yield return steamRoot;
-        var vdf = Path.Join(steamRoot, "steamapps", "libraryfolders.vdf");
-        if (!File.Exists(vdf))
-        {
-            yield break;
-        }
-        string text;
-        try
-        {
-            text = File.ReadAllText(vdf);
-        }
-        catch (IOException)
-        {
-            yield break;
-        }
-        foreach (Match m in LibraryPathRx().Matches(text))
-        {
-            var path = m.Groups["path"].Value.Replace("\\\\", "\\").Replace("\\/", "/");
-            if (path != steamRoot && Directory.Exists(path))
-            {
-                yield return path;
-            }
-        }
-    }
-
     [GeneratedRegex("\"installdir\"\\s+\"(?<dir>[^\"]+)\"")]
     private static partial Regex InstallDirRx();
 
     [GeneratedRegex("\"StateFlags\"\\s+\"(?<flags>\\d+)\"")]
     private static partial Regex StateFlagsRx();
-
-    [GeneratedRegex("\"path\"\\s+\"(?<path>[^\"]+)\"")]
-    private static partial Regex LibraryPathRx();
 }

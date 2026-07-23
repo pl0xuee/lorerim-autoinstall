@@ -26,6 +26,8 @@ public class PreflightService(
     SkyrimLocator skyrimLocator,
     ProtontricksService protontricks,
     CompatToolCatalog compatTools,
+    SteamRuntimeCatalog steamRuntimes,
+    SettingsService settingsService,
     JackifyEngineLocator engineLocator,
     JackifyEngineRunner engineRunner
 )
@@ -88,7 +90,13 @@ public class PreflightService(
                 )
         );
 
-        checks.Add(ProtonCheck(compatTools.Scan(steam?.Root)));
+        checks.Add(
+            ProtonCheck(
+                compatTools.Scan(steam?.Root),
+                steamRuntimes.AvailabilityFor(steam?.Root),
+                settingsService.Settings.PreferredProtonInternalName
+            )
+        );
 
         checks.AddRange(
             SpaceChecks(installDir, downloadDir, RequiredDownloadBytes, RequiredInstallBytes)
@@ -101,32 +109,60 @@ public class PreflightService(
     }
 
     /// <summary>
-    /// LoreRim pins GE-Proton10-34 for ENB; anything else is reported with the reason so the
-    /// user can install the right build before the Steam shortcut is created.
+    /// LoreRim pins GE-Proton10-34 for ENB, but a build whose Steam Linux Runtime is not
+    /// installed cannot run at all — protontricks refuses and the install dies after the
+    /// engine phase. Selection falls through to a build that works and reports what it
+    /// substituted; only a machine with nothing runnable fails here.
     /// </summary>
-    private static PreflightCheck ProtonCheck(List<CompatTool> tools)
+    internal static PreflightCheck ProtonCheck(
+        List<CompatTool> tools,
+        Func<int, bool> runtimeInstalled,
+        string? pinned
+    )
     {
         if (tools.Count == 0)
         {
             return new PreflightCheck("Proton", CheckState.Fail, LorerimProton.Guidance);
         }
-        var (suitability, best) = LorerimProton.Best(tools);
-        return suitability switch
+
+        var selection = LorerimProton.Select(tools, runtimeInstalled, pinned);
+        if (selection.Tool is null)
+        {
+            var blocked = selection.SubstitutedFor;
+            var reason =
+                blocked?.RequiredRuntimeAppId is { } appId
+                    ? $"{blocked.DisplayName} needs {SteamRuntimeCatalog.Describe(appId)}, "
+                        + "which is not installed, and no other build can run either. "
+                    : "No installed Proton build can run. ";
+            return new PreflightCheck("Proton", CheckState.Fail, reason + LorerimProton.Guidance);
+        }
+
+        var chosen = selection.Tool;
+        if (selection.SubstitutedFor is { } replaced)
+        {
+            var cause =
+                replaced.RequiredRuntimeAppId is { } appId
+                    ? $"needs {SteamRuntimeCatalog.Describe(appId)}, which is not installed"
+                    : "cannot run on this machine";
+            return new PreflightCheck(
+                "Proton",
+                CheckState.Warn,
+                $"{replaced.DisplayName} {cause} — using {chosen.DisplayName} instead "
+                    + $"({LorerimProton.Describe(selection.Suitability)})."
+            );
+        }
+
+        return selection.Suitability switch
         {
             ProtonSuitability.Required => new PreflightCheck(
                 "Proton",
                 CheckState.Ok,
-                $"{best!.DisplayName} — {LorerimProton.Describe(suitability)}"
-            ),
-            ProtonSuitability.Compatible => new PreflightCheck(
-                "Proton",
-                CheckState.Warn,
-                $"{best!.DisplayName} — {LorerimProton.Describe(suitability)}. {LorerimProton.Guidance}"
+                $"{chosen.DisplayName} — {LorerimProton.Describe(selection.Suitability)}"
             ),
             _ => new PreflightCheck(
                 "Proton",
                 CheckState.Warn,
-                $"Best available is {best!.DisplayName} — {LorerimProton.Describe(suitability)}. "
+                $"{chosen.DisplayName} — {LorerimProton.Describe(selection.Suitability)}. "
                     + LorerimProton.Guidance
             ),
         };

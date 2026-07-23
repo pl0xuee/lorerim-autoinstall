@@ -6,7 +6,12 @@ using System.Text.RegularExpressions;
 
 namespace Lorerim.Gui.Services.Steam;
 
-public sealed record CompatTool(string InternalName, string DisplayName, string Directory)
+public sealed record CompatTool(
+    string InternalName,
+    string DisplayName,
+    string Directory,
+    int? RequiredRuntimeAppId = null
+)
 {
     public string ProtonBinary => Path.Join(Directory, "proton");
     public override string ToString() => DisplayName;
@@ -17,16 +22,24 @@ public sealed record CompatTool(string InternalName, string DisplayName, string 
 /// LoreRim suitability (see <see cref="LorerimProton"/>): the tested GE-Proton10-34 first,
 /// then the rest of that GE line, then other GE builds, then everything else.
 /// </summary>
-public partial class CompatToolCatalog
+public partial class CompatToolCatalog(IReadOnlyList<string>? wellKnownDirs = null)
 {
+    private static readonly string[] DefaultDirs =
+    [
+        Path.Join(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".steam",
+            "root",
+            "compatibilitytools.d"
+        ),
+        "/usr/share/steam/compatibilitytools.d",
+    ];
+
+    private readonly IReadOnlyList<string> _wellKnownDirs = wellKnownDirs ?? DefaultDirs;
+
     public List<CompatTool> Scan(string? steamRoot)
     {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        List<string> dirs =
-        [
-            Path.Join(home, ".steam", "root", "compatibilitytools.d"),
-            "/usr/share/steam/compatibilitytools.d",
-        ];
+        List<string> dirs = [.. _wellKnownDirs];
         if (steamRoot is not null)
         {
             dirs.Add(Path.Join(steamRoot, "compatibilitytools.d"));
@@ -54,49 +67,40 @@ public partial class CompatToolCatalog
                     new CompatTool(
                         nameMatch.Groups["name"].Value,
                         displayMatch.Success ? displayMatch.Groups["dn"].Value : nameMatch.Groups["name"].Value,
-                        toolDir
+                        toolDir,
+                        ReadRequiredRuntimeAppId(toolDir)
                     )
                 );
             }
         }
-        return tools
-            .DistinctBy(t => t.InternalName)
-            .OrderBy(Rank)
-            .ThenByDescending(t => VersionKey(t.DisplayName + " " + t.InternalName), VersionComparer.Instance)
-            .ToList();
+        return LorerimProton.Order(tools.DistinctBy(t => t.InternalName)).ToList();
     }
 
-    public CompatTool? PickBest(List<CompatTool> tools) => tools.FirstOrDefault();
-
-    private static int Rank(CompatTool t) => LorerimProton.Rank(t);
-
-    // long, and clamp on overflow: a date-stamped build (GE-Proton-20250101120000) exceeds
-    // int range and would otherwise throw OverflowException, crashing the Steam page.
-    private static long[] VersionKey(string s) =>
-        NumberRx()
-            .Matches(s)
-            .Select(m => long.TryParse(m.Value, out var n) ? n : long.MaxValue)
-            .ToArray();
-
-    private sealed class VersionComparer : IComparer<long[]>
+    /// <summary>
+    /// The Steam Linux Runtime a build must run inside, from its toolmanifest. Anything
+    /// unreadable or unrecognised reads as "no requirement": filtering out a build that works
+    /// today would be a regression, while missing a requirement is only the status quo.
+    /// </summary>
+    private static int? ReadRequiredRuntimeAppId(string toolDir)
     {
-        public static readonly VersionComparer Instance = new();
-
-        public int Compare(long[]? x, long[]? y)
+        var manifest = Path.Join(toolDir, "toolmanifest.vdf");
+        if (!File.Exists(manifest))
         {
-            x ??= [];
-            y ??= [];
-            for (var i = 0; i < Math.Max(x.Length, y.Length); i++)
-            {
-                var xi = i < x.Length ? x[i] : 0;
-                var yi = i < y.Length ? y[i] : 0;
-                if (xi != yi)
-                {
-                    return xi.CompareTo(yi);
-                }
-            }
-            return 0;
+            return null;
         }
+        string text;
+        try
+        {
+            text = File.ReadAllText(manifest);
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        var match = RequiredRuntimeRx().Match(text);
+        return match.Success && int.TryParse(match.Groups["id"].Value, out var appId)
+            ? appId
+            : null;
     }
 
     [GeneratedRegex("\"compat_tools\"\\s*\\{\\s*\"(?<name>[^\"]+)\"", RegexOptions.Singleline)]
@@ -105,6 +109,6 @@ public partial class CompatToolCatalog
     [GeneratedRegex("\"display_name\"\\s+\"(?<dn>[^\"]+)\"")]
     private static partial Regex DisplayNameRx();
 
-    [GeneratedRegex(@"\d+")]
-    private static partial Regex NumberRx();
+    [GeneratedRegex("\"require_tool_appid\"\\s+\"(?<id>\\d+)\"")]
+    private static partial Regex RequiredRuntimeRx();
 }

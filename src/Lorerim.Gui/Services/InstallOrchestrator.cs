@@ -37,6 +37,7 @@ public class InstallOrchestrator(
     JackifyEngineRunner engine,
     SteamLocator steamLocator,
     CompatToolCatalog compatTools,
+    SteamRuntimeCatalog steamRuntimes,
     SteamIntegrationService steamIntegration,
     ModFixupService modFixups,
     LogService log
@@ -208,35 +209,29 @@ public class InstallOrchestrator(
     private CompatTool? PickCompatTool(SteamInstallation steam)
     {
         var tools = compatTools.Scan(steam.Root);
-        var best = compatTools.PickBest(tools);
+        var runtimeInstalled = steamRuntimes.AvailabilityFor(steam.Root);
         var preferred = settingsService.Settings.PreferredProtonInternalName;
-        if (!string.IsNullOrEmpty(preferred))
+
+        if (
+            !string.IsNullOrEmpty(preferred)
+            && !tools.Any(t => t.InternalName.Equals(preferred, StringComparison.OrdinalIgnoreCase))
+        )
         {
-            var match = tools.FirstOrDefault(t =>
-                t.InternalName.Equals(preferred, StringComparison.OrdinalIgnoreCase)
-            );
-            if (match is null)
-            {
-                log.Append($"Preferred Proton '{preferred}' not found; falling back to best available.");
-            }
-            else if (
-                LorerimProton.Evaluate(match) == ProtonSuitability.Unsupported
-                && best is not null
-                && LorerimProton.Evaluate(best) != ProtonSuitability.Unsupported
-            )
-            {
-                // A pin must not override the one hard compatibility rule this app exists to
-                // enforce; the user can still see the substitution in the log.
-                log.Append(
-                    $"Preferred Proton '{preferred}' is known not to work with LoreRim; using {best.DisplayName} instead."
-                );
-            }
-            else
-            {
-                return match;
-            }
+            log.Append($"Preferred Proton '{preferred}' not found; falling back to best available.");
         }
-        return best;
+
+        var selection = LorerimProton.Select(tools, runtimeInstalled, preferred);
+        if (selection.SubstitutedFor is { } replaced && selection.Tool is { } chosen)
+        {
+            // Why the substitution happened matters: a missing Steam Linux Runtime is fixable
+            // by installing it, whereas a compatibility override is a deliberate rule.
+            var cause =
+                replaced.RequiredRuntimeAppId is { } appId && !runtimeInstalled(appId)
+                    ? $"needs {SteamRuntimeCatalog.Describe(appId)}, which is not installed"
+                    : "is known not to work with LoreRim";
+            log.Append($"{replaced.DisplayName} {cause}; using {chosen.DisplayName} instead.");
+        }
+        return selection.Tool;
     }
 
     private static long Headroom(long? catalogBytes, long fallback) =>
