@@ -87,12 +87,26 @@ public class SteamIntegrationService(
                     : null;
                 if (existing is not null)
                 {
-                    // Leave the user's entry (and its compat tool + artwork) exactly as they are;
-                    // reuse its appid so the prefix/protontricks/fixes below still target it.
+                    // Leave the user's entry and artwork exactly as they are; reuse its appid so
+                    // the prefix/protontricks/fixes below still target it. One exception: if the
+                    // compatibility-tool mapping is missing (e.g. a first run wrote the shortcut
+                    // but failed before setting it), restore it — without it Steam launches
+                    // ModOrganizer.exe with no Proton and it never runs. An existing mapping is
+                    // left untouched so a user's manual Proton choice survives.
                     shortcut = existing;
-                    log.Append(
-                        $"Existing Steam shortcut '{ctx.AppName}' found (appid {existing.SignedAppId}, compat key {existing.UnsignedAppId}); leaving it untouched."
-                    );
+                    if (configVdf.GetCompatTool(ctx.Steam, existing.UnsignedAppId) is null)
+                    {
+                        configVdf.SetCompatTool(ctx.Steam, existing.UnsignedAppId, ctx.Tool.InternalName);
+                        log.Append(
+                            $"Existing Steam shortcut '{ctx.AppName}' found (appid {existing.SignedAppId}); left untouched, restored missing compatibility tool → {ctx.Tool.InternalName}."
+                        );
+                    }
+                    else
+                    {
+                        log.Append(
+                            $"Existing Steam shortcut '{ctx.AppName}' found (appid {existing.SignedAppId}, compat key {existing.UnsignedAppId}); leaving it untouched."
+                        );
+                    }
                     return Task.CompletedTask;
                 }
                 shortcut = shortcutsVdf.Upsert(
