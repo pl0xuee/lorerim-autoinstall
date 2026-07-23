@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Lorerim.Gui.Models;
 using Lorerim.Gui.Services.Engine;
 using Lorerim.Gui.Services.Modlist;
 using Lorerim.Gui.Services.Nexus;
@@ -178,6 +179,10 @@ public class InstallOrchestrator(
         }
         Report(InstallPhase.VerifyInstall, StepState.Ok, mo2Exe);
 
+        // Before Steam setup, not after: the profiles exist the moment the engine finishes,
+        // and a Steam step failing should not cost the user the resolution they picked.
+        ApplyResolutionPreference(Path.GetDirectoryName(mo2Exe)!);
+
         // ---- Steam setup ----
         if (settings.SetupSteamAfterInstall)
         {
@@ -206,6 +211,35 @@ public class InstallOrchestrator(
         Report(InstallPhase.Done, StepState.Ok);
     }
 
+    /// <summary>
+    /// Writes the chosen render resolution into every profile. A failure here is logged and
+    /// not thrown: a finished install with the modlist's own resolution is still a working
+    /// install, and the user can re-apply from Settings.
+    /// </summary>
+    private void ApplyResolutionPreference(string installDir)
+    {
+        var preference = settingsService.Settings.PreferredResolution;
+        if (preference is null)
+        {
+            return;
+        }
+        try
+        {
+            if (SkyrimResolutionService.ApplyPreference(installDir, preference))
+            {
+                log.Append($"Resolution: set to {preference} in every profile.");
+            }
+            else
+            {
+                log.Append($"Resolution: '{preference}' is not a resolution; left unchanged.");
+            }
+        }
+        catch (IOException ex)
+        {
+            log.Append($"Resolution: could not be applied — {ex.Message}");
+        }
+    }
+
     private CompatTool? PickCompatTool(SteamInstallation steam)
     {
         var tools = compatTools.Scan(steam.Root);
@@ -232,10 +266,7 @@ public class InstallOrchestrator(
     private static long Headroom(long? catalogBytes, long fallback) =>
         catalogBytes is { } b ? (long)(b * 1.1) : fallback;
 
-    private static string ExpandHome(string path) =>
-        path.StartsWith("~/")
-            ? Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), path[2..])
-            : path;
+    private static string ExpandHome(string path) => AppSettings.ExpandHome(path);
 
     private void Report(InstallPhase phase, StepState state, string detail = "") =>
         PhaseChanged?.Invoke(new InstallPhaseChange(phase, state, detail));

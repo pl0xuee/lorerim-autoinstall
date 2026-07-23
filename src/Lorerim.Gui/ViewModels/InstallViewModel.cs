@@ -9,6 +9,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Lorerim.Gui.Services;
+using Lorerim.Gui.Services.Display;
 using Lorerim.Gui.Services.Engine;
 using Lorerim.Gui.Services.Nexus;
 
@@ -98,6 +99,14 @@ public partial class InstallViewModel : ViewModelBase
     // The Settings page edits the same two paths; the in-memory AppSettings object is the
     // single source of truth, updated on every keystroke so neither page can clobber the
     // other with stale values (disk persistence still happens on explicit actions).
+    public ObservableCollection<ResolutionOption> Resolutions { get; } = [];
+
+    [ObservableProperty]
+    public partial ResolutionOption? SelectedResolution { get; set; }
+
+    partial void OnSelectedResolutionChanged(ResolutionOption? value) =>
+        _settings.Settings.PreferredResolution = value?.Value;
+
     partial void OnInstallDirChanged(string value) => _settings.Settings.InstallDir = value;
 
     partial void OnDownloadDirChanged(string value) => _settings.Settings.DownloadDir = value;
@@ -143,7 +152,8 @@ public partial class InstallViewModel : ViewModelBase
         PreflightService preflightService,
         NexusOAuthService oauth,
         NexusTokenStore tokenStore,
-        JackifyEngineRunner engineRunner
+        JackifyEngineRunner engineRunner,
+        DisplayCatalog displayCatalog
     )
     {
         _runner = runner;
@@ -157,6 +167,15 @@ public partial class InstallViewModel : ViewModelBase
 
         InstallDir = settings.Settings.InstallDir;
         DownloadDir = settings.Settings.DownloadDir;
+
+        // Offered before the run so a first install lands on the right resolution, but the
+        // write happens after the engine finishes — the profiles do not exist until then.
+        var storedResolution = settings.Settings.PreferredResolution;
+        foreach (var option in ResolutionOption.Build(displayCatalog.Choices(), storedResolution))
+        {
+            Resolutions.Add(option);
+        }
+        SelectedResolution = ResolutionOption.Select(Resolutions, storedResolution);
 
         foreach (var phase in PhaseNames.Keys)
         {

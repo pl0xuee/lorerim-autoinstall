@@ -89,6 +89,9 @@ public partial class App : Application
             // tests can scan a fixture, and the container must not try to resolve it.
             .AddSingleton(_ => new Services.Steam.CompatToolCatalog())
             .AddSingleton<Services.Steam.SteamRuntimeCatalog>()
+            // Constructed explicitly: its sysfs root is an optional parameter so tests can
+            // scan a fixture, and the container must not try to resolve it.
+            .AddSingleton(_ => new Services.Display.DisplayCatalog())
             .AddSingleton<Services.Steam.ShortcutsVdfService>()
             .AddSingleton<Services.Steam.ConfigVdfService>()
             .AddSingleton<Services.Steam.SteamProcessService>()

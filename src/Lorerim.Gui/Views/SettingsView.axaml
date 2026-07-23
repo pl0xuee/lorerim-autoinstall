@@ -55,6 +55,14 @@
                                   SelectedItem="{Binding SelectedTool}" MinWidth="260"/>
                         <Button Content="Rescan" Command="{Binding RefreshProtonListCommand}"/>
                     </StackPanel>
+                    <TextBlock Text="Game resolution"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <ComboBox ItemsSource="{Binding Resolutions}"
+                                  SelectedItem="{Binding SelectedResolution}" MinWidth="260"/>
+                        <Button Content="Apply now" Command="{Binding ApplyResolutionCommand}"/>
+                        <Button Content="Rescan" Command="{Binding RefreshResolutionsCommand}"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding ResolutionStatus}" Classes="muted"/>
                     <TextBlock Text="Local .wabbajack file (leave empty to download automatically)"/>
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBox Grid.Column="0" Text="{Binding WabbajackFilePath}"/>

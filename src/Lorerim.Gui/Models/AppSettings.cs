@@ -23,6 +23,12 @@ public class AppSettings
     /// <summary>Legacy Nexus API key fallback when OAuth is not used.</summary>
     public string? NexusApiKey { get; set; }
 
+    /// <summary>
+    /// Render resolution to write into the modlist as "WxH". Null means "leave whatever the
+    /// modlist ships", so an install nobody has configured is never touched.
+    /// </summary>
+    public string? PreferredResolution { get; set; }
+
     public bool SetupSteamAfterInstall { get; set; } = true;
 
     public async Task SaveAsync()
@@ -84,6 +90,12 @@ public class AppSettings
     );
 
     public static string SettingsPath => Path.Join(AppDataPath, "settings.json");
+
+    /// <summary>Expands a leading ~/ so a hand-edited settings file works like a shell path.</summary>
+    public static string ExpandHome(string path) =>
+        path.StartsWith("~/", StringComparison.Ordinal)
+            ? Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), path[2..])
+            : path;
 
     private static string DefaultInstallDir =>
         Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Games", "LoreRim");

@@ -39,7 +39,7 @@
             <!-- Hero: paths, auth, the one button -->
             <Border Classes="card-hero">
                 <StackPanel Spacing="14">
-                    <Grid ColumnDefinitions="110,*,Auto" RowDefinitions="Auto,10,Auto">
+                    <Grid ColumnDefinitions="110,*,Auto" RowDefinitions="Auto,10,Auto,10,Auto">
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Install to" Classes="muted"
                                    VerticalAlignment="Center"/>
                         <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding InstallDir}"/>
@@ -50,6 +50,11 @@
                         <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding DownloadDir}"/>
                         <Button Grid.Row="2" Grid.Column="2" Content="Browse…" Margin="8,0,0,0"
                                 Command="{Binding BrowseDownloadDirCommand}"/>
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Resolution" Classes="muted"
+                                   VerticalAlignment="Center"/>
+                        <ComboBox Grid.Row="4" Grid.Column="1" HorizontalAlignment="Stretch"
+                                  ItemsSource="{Binding Resolutions}"
+                                  SelectedItem="{Binding SelectedResolution}"/>
                     </Grid>
 
                     <!-- Nexus status reads as one unit: dot, text, and the action beside it -->

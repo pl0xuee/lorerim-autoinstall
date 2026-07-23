@@ -7,10 +7,53 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Lorerim.Gui.Models;
 using Lorerim.Gui.Services;
+using Lorerim.Gui.Services.Display;
+using Lorerim.Gui.Services.Modlist;
 using Lorerim.Gui.Services.Nexus;
 using Lorerim.Gui.Services.Steam;
 
 namespace Lorerim.Gui.ViewModels;
+
+/// <summary>
+/// One entry in the resolution picker. <see cref="Value"/> is null for "leave the modlist's
+/// own resolution alone", which is the default so an install nobody configured is untouched.
+/// </summary>
+public sealed record ResolutionOption(string? Value, string Label)
+{
+    public override string ToString() => Label;
+
+    /// <summary>
+    /// The picker's entries, shared by the install page and Settings so the two cannot drift.
+    /// "Leave alone" leads, then every detected resolution.
+    /// </summary>
+    public static List<ResolutionOption> Build(
+        IReadOnlyList<ResolutionChoice> choices,
+        string? stored
+    )
+    {
+        List<ResolutionOption> options = [new(null, "Leave as the modlist ships")];
+        foreach (var choice in choices)
+        {
+            var displays = string.Join(", ", choice.Displays);
+            options.Add(
+                new ResolutionOption(
+                    choice.Mode.ToString(),
+                    $"{choice.Mode}  ({(choice.IsPrimaryNative ? $"{displays} — primary, native" : displays)})"
+                )
+            );
+        }
+        // Unplugging the monitor a resolution was chosen for must not silently rewrite the
+        // setting to "leave alone" the next time this list is built.
+        if (stored is not null && options.All(o => o.Value != stored))
+        {
+            options.Add(new ResolutionOption(stored, $"{stored}  (not offered by any display)"));
+        }
+        return options;
+    }
+
+    public static ResolutionOption Select(IReadOnlyList<ResolutionOption> options, string? stored) =>
+        options.FirstOrDefault(o => o.Value == stored) ?? options[0];
+}
 
 public partial class SettingsViewModel : ViewModelBase
 {
@@ -54,6 +97,14 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsSignedIn { get; set; }
 
+    public ObservableCollection<ResolutionOption> Resolutions { get; } = [];
+
+    [ObservableProperty]
+    public partial ResolutionOption? SelectedResolution { get; set; }
+
+    [ObservableProperty]
+    public partial string ResolutionStatus { get; set; } = "";
+
     public ObservableCollection<CompatTool> CompatTools { get; } = [];
 
     [ObservableProperty]
@@ -94,9 +145,11 @@ public partial class SettingsViewModel : ViewModelBase
         OperationRunner runner,
         NexusTokenStore tokenStore,
         SteamLocator steamLocator,
-        CompatToolCatalog compatToolCatalog
+        CompatToolCatalog compatToolCatalog,
+        DisplayCatalog displayCatalog
     )
     {
+        _displayCatalog = displayCatalog;
         _settings = settings;
         _log = log;
         _appUpdate = appUpdate;
@@ -114,7 +167,82 @@ public partial class SettingsViewModel : ViewModelBase
         NexusApiKey = s.NexusApiKey ?? "";
         StatusText = $"Settings file: {AppSettings.SettingsPath}";
         RefreshProtonList();
+        RefreshResolutions();
         RefreshOAuthStatus();
+    }
+
+    /// <summary>
+    /// Rebuilds the resolution list from the connected displays and reports how the install's
+    /// current setting compares. Detection failing is not an error: the list falls back to
+    /// "leave alone" plus whatever the install already uses.
+    /// </summary>
+    [RelayCommand]
+    private void RefreshResolutions()
+    {
+        var stored = _settings.Settings.PreferredResolution;
+        var choices = _displayCatalog.Choices();
+
+        Resolutions.Clear();
+        foreach (var option in ResolutionOption.Build(choices, stored))
+        {
+            Resolutions.Add(option);
+        }
+        SelectedResolution = ResolutionOption.Select(Resolutions, stored);
+        ResolutionStatus = DescribeResolution(choices);
+    }
+
+    /// <summary>Writes the picked resolution into an existing install without re-running one.</summary>
+    [RelayCommand]
+    private async Task ApplyResolutionAsync()
+    {
+        var installDir = AppSettings.ExpandHome(InstallDir);
+        if (!Directory.Exists(Path.Join(installDir, "profiles")))
+        {
+            ResolutionStatus = "No install found at the install folder yet — install first.";
+            return;
+        }
+        await SaveAsync();
+        try
+        {
+            if (SkyrimResolutionService.ApplyPreference(installDir, SelectedResolution?.Value))
+            {
+                _log.Append($"Resolution: set to {SelectedResolution!.Value} in every profile.");
+            }
+            else
+            {
+                ResolutionStatus = "Nothing to apply — the modlist's own resolution is kept.";
+                return;
+            }
+        }
+        catch (IOException ex)
+        {
+            ResolutionStatus = $"Could not write the resolution: {ex.Message}";
+            return;
+        }
+        RefreshResolutions();
+    }
+
+    /// <summary>Names the mismatch that makes this setting worth having.</summary>
+    private string DescribeResolution(IReadOnlyList<ResolutionChoice> choices)
+    {
+        var installDir = AppSettings.ExpandHome(InstallDir);
+        if (SkyrimResolutionService.Read(installDir) is not { } current)
+        {
+            return choices.Count == 0
+                ? "No displays detected and no install to read."
+                : "No install to read a resolution from yet.";
+        }
+        var currentText = $"{current.Width}x{current.Height}";
+        if (choices.Count == 0)
+        {
+            return $"Install is set to {currentText}. No displays detected.";
+        }
+        var native = choices.Where(c => c.IsPrimaryNative).Select(c => c.Mode.ToString()).FirstOrDefault();
+        var matches = choices.Any(c => c.Mode.ToString() == currentText);
+        return matches
+            ? $"Install is set to {currentText}."
+            : $"Install is set to {currentText}, which no connected display offers"
+                + (native is null ? "." : $" — primary is {native}.");
     }
 
     [RelayCommand]
@@ -127,6 +255,7 @@ public partial class SettingsViewModel : ViewModelBase
         s.MachineUrlOverride = NullIfEmpty(MachineUrlOverride);
         s.SetupSteamAfterInstall = SetupSteamAfterInstall;
         s.NexusApiKey = NullIfEmpty(NexusApiKey);
+        s.PreferredResolution = SelectedResolution?.Value;
         if (_protonTouched)
         {
             s.PreferredProtonInternalName = SelectedTool?.InternalName;
@@ -344,6 +473,7 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly NexusTokenStore _tokenStore;
     private readonly SteamLocator _steamLocator;
     private readonly CompatToolCatalog _compatToolCatalog;
+    private readonly DisplayCatalog _displayCatalog;
     private AppUpdateCheck? _pendingUpdate;
     private bool _protonTouched;
     private bool _suppressProtonDirty;
