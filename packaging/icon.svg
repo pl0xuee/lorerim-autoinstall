@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="42%" r="70%">
+      <stop offset="0%" stop-color="#1C2430"/>
+      <stop offset="100%" stop-color="#0E1116"/>
+    </radialGradient>
+    <linearGradient id="brass" gradientUnits="userSpaceOnUse"
+                    x1="256" y1="110" x2="256" y2="408">
+      <stop offset="0%" stop-color="#E0BC74"/>
+      <stop offset="55%" stop-color="#C9A05A"/>
+      <stop offset="100%" stop-color="#A07938"/>
+    </linearGradient>
+  </defs>
+
+  <!-- slate plate -->
+  <rect x="16" y="16" width="480" height="480" rx="96" fill="url(#glow)"/>
+  <rect x="16" y="16" width="480" height="480" rx="96" fill="none"
+        stroke="#2A3340" stroke-width="8"/>
+  <rect x="34" y="34" width="444" height="444" rx="82" fill="none"
+        stroke="#1A2029" stroke-width="4"/>
+
+  <!-- carved shadow of the rune (offset dark copy for depth) -->
+  <g stroke="#0A0D11" stroke-width="44" stroke-linecap="square" fill="none"
+     transform="translate(7,9)">
+    <path d="M 222 128 L 222 398"/>
+    <path d="M 228 152 L 326 226"/>
+  </g>
+
+  <!-- Laguz rune ᛚ in nordic brass -->
+  <g stroke="url(#brass)" stroke-width="42" stroke-linecap="square" fill="none">
+    <path d="M 222 118 L 222 400"/>
+    <path d="M 226 144 L 328 228"/>
+  </g>
+
+  <!-- chisel notches: quiet structure, bottom rim -->
+  <g stroke="#2A3340" stroke-width="6" stroke-linecap="square">
+    <path d="M 150 448 L 178 448"/>
+    <path d="M 242 448 L 270 448"/>
+    <path d="M 334 448 L 362 448"/>
+  </g>
+</svg>

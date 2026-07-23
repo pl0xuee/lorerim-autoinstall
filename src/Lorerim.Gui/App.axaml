@@ -1,0 +1,158 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Lorerim.Gui.App"
+             xmlns:local="using:Lorerim.Gui"
+             RequestedThemeVariant="Dark">
+
+    <Application.DataTemplates>
+        <local:ViewLocator />
+    </Application.DataTemplates>
+
+    <Application.Resources>
+        <!-- Nordic night palette: cold slate, parchment text, restrained brass -->
+        <Color x:Key="RuneBgColor">#0E1116</Color>
+        <Color x:Key="RunePanelColor">#131820</Color>
+        <Color x:Key="RuneCardColor">#1A2029</Color>
+        <Color x:Key="RuneHairlineColor">#2A3340</Color>
+        <Color x:Key="RuneTextColor">#E3DFD3</Color>
+        <Color x:Key="RuneMutedColor">#8B93A0</Color>
+        <Color x:Key="RuneBrassColor">#C9A05A</Color>
+        <Color x:Key="RuneBrassBrightColor">#E0BC74</Color>
+        <Color x:Key="RuneFrostColor">#9FB4C4</Color>
+
+        <SolidColorBrush x:Key="RuneBg" Color="{StaticResource RuneBgColor}"/>
+        <SolidColorBrush x:Key="RunePanel" Color="{StaticResource RunePanelColor}"/>
+        <SolidColorBrush x:Key="RuneCard" Color="{StaticResource RuneCardColor}"/>
+        <SolidColorBrush x:Key="RuneHairline" Color="{StaticResource RuneHairlineColor}"/>
+        <SolidColorBrush x:Key="RuneText" Color="{StaticResource RuneTextColor}"/>
+        <SolidColorBrush x:Key="RuneMuted" Color="{StaticResource RuneMutedColor}"/>
+        <SolidColorBrush x:Key="RuneBrass" Color="{StaticResource RuneBrassColor}"/>
+        <SolidColorBrush x:Key="RuneBrassBright" Color="{StaticResource RuneBrassBrightColor}"/>
+        <SolidColorBrush x:Key="RuneFrost" Color="{StaticResource RuneFrostColor}"/>
+
+        <!-- Fluent accent → nordic brass (checkboxes, progress bars, selections) -->
+        <Color x:Key="SystemAccentColor">#C9A05A</Color>
+        <Color x:Key="SystemAccentColorDark1">#B58C48</Color>
+        <Color x:Key="SystemAccentColorDark2">#A07938</Color>
+        <Color x:Key="SystemAccentColorDark3">#8A662A</Color>
+        <Color x:Key="SystemAccentColorLight1">#E0BC74</Color>
+        <Color x:Key="SystemAccentColorLight2">#EACC90</Color>
+        <Color x:Key="SystemAccentColorLight3">#F2DCAC</Color>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+
+        <Style Selector="Window">
+            <Setter Property="Background" Value="{StaticResource RuneBg}"/>
+            <Setter Property="Foreground" Value="{StaticResource RuneText}"/>
+        </Style>
+
+        <!-- Page header pattern: tracked uppercase eyebrow over the title -->
+        <Style Selector="TextBlock.eyebrow">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="LetterSpacing" Value="3"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource RuneBrass}"/>
+        </Style>
+        <Style Selector="TextBlock.h1">
+            <Setter Property="FontSize" Value="26"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource RuneText}"/>
+        </Style>
+        <Style Selector="TextBlock.muted">
+            <Setter Property="Foreground" Value="{StaticResource RuneMuted}"/>
+        </Style>
+        <Style Selector="TextBlock.mono">
+            <Setter Property="FontFamily" Value="monospace"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{StaticResource RuneCard}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource RuneHairline}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="16"/>
+        </Style>
+        <Style Selector="Border.card-hero">
+            <Setter Property="BorderThickness" Value="1,1,1,1"/>
+            <Setter Property="BorderBrush" Value="{StaticResource RuneHairline}"/>
+            <Setter Property="Background" Value="{StaticResource RuneCard}"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="18,16"/>
+        </Style>
+
+        <!-- Brass action button; dark text for contrast on brass -->
+        <Style Selector="Button.accent">
+            <Setter Property="Background" Value="{StaticResource RuneBrass}"/>
+            <Setter Property="Foreground" Value="#15120C"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource RuneBrassBright}"/>
+            <Setter Property="Foreground" Value="#15120C"/>
+        </Style>
+        <Style Selector="Button.accent:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource RuneBrassColor}"/>
+            <Setter Property="Foreground" Value="#15120C"/>
+        </Style>
+
+        <!-- Rail navigation -->
+        <Style Selector="ListBox.nav">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style Selector="ListBox.nav ListBoxItem">
+            <Setter Property="Padding" Value="18,11"/>
+        </Style>
+        <Style Selector="ListBox.nav ListBoxItem TextBlock.nav-label">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="LetterSpacing" Value="2"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Foreground" Value="{StaticResource RuneMuted}"/>
+        </Style>
+        <Style Selector="ListBox.nav ListBoxItem TextBlock.nav-icon">
+            <Setter Property="Foreground" Value="{StaticResource RuneMuted}"/>
+        </Style>
+        <Style Selector="ListBox.nav ListBoxItem:selected TextBlock.nav-label">
+            <Setter Property="Foreground" Value="{StaticResource RuneBrass}"/>
+        </Style>
+        <Style Selector="ListBox.nav ListBoxItem:selected TextBlock.nav-icon">
+            <Setter Property="Foreground" Value="{StaticResource RuneBrass}"/>
+        </Style>
+        <Style Selector="ListBox.nav ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#202834"/>
+        </Style>
+        <Style Selector="ListBox.nav ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1A212B"/>
+        </Style>
+
+        <!-- Data surfaces sit on the card tone, hairline separators -->
+        <Style Selector="DataGrid">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{StaticResource RuneHairline}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource RuneHairline}"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="DataGridColumnHeader">
+            <Setter Property="Background" Value="{StaticResource RunePanel}"/>
+            <Setter Property="Foreground" Value="{StaticResource RuneMuted}"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+
+        <!-- Frost-tinted log pane -->
+        <Style Selector="ListBox.log">
+            <Setter Property="Background" Value="#0A0D11"/>
+            <Setter Property="FontFamily" Value="monospace"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource RuneFrost}"/>
+        </Style>
+        <Style Selector="ListBox.log ListBoxItem">
+            <Setter Property="Padding" Value="10,1"/>
+            <Setter Property="MinHeight" Value="0"/>
+        </Style>
+    </Application.Styles>
+</Application>

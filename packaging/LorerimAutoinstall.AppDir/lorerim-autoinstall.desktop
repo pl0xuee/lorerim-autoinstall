@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=LoreRim Autoinstall
+Comment=One-click LoreRim (Wabbajack) installer for Linux
+Exec=Lorerim.Gui %u
+Icon=lorerim-autoinstall
+Type=Application
+Categories=Game;Utility;
+Terminal=false
+StartupWMClass=Lorerim.Gui
+MimeType=x-scheme-handler/jackify;

@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Lorerim.Gui.ViewModels"
+             x:Class="Lorerim.Gui.Views.SteamSetupView"
+             x:DataType="vm:SteamSetupViewModel">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
+        <StackPanel Grid.Row="0" Spacing="2">
+            <TextBlock Classes="eyebrow" Text="LAUNCH INTEGRATION"/>
+            <TextBlock Classes="h1" Text="Steam"/>
+            <TextBlock Classes="muted" Margin="0,6,0,0"
+                       Text="Adds a Steam shortcut for Mod Organizer 2, sets Proton, creates the prefix and installs prerequisites via protontricks."
+                       TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,12">
+            <Button Content="Check requirements" Command="{Binding PreflightCommand}"/>
+            <TextBlock Text="Shortcut name:" VerticalAlignment="Center"/>
+            <TextBox Text="{Binding AppName}" Width="180"/>
+            <TextBlock Text="Proton:" VerticalAlignment="Center"/>
+            <ComboBox ItemsSource="{Binding CompatTools}" SelectedItem="{Binding SelectedTool}"
+                      MinWidth="260"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+            <CheckBox Content="I understand Steam will be closed and restarted"
+                      IsChecked="{Binding ConfirmRestart}"/>
+            <Button Content="Run Steam setup" Classes="accent"
+                    Command="{Binding RunSetupCommand}"
+                    IsEnabled="{Binding PreflightOk}"/>
+        </StackPanel>
+
+        <TextBlock Grid.Row="3" Text="{Binding PreflightText}" TextWrapping="Wrap"
+                   Classes="mono muted" Margin="0,0,0,8"/>
+
+        <ItemsControl Grid.Row="4" ItemsSource="{Binding Steps}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:SetupStep">
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4">
+                        <TextBlock Text="{Binding Status}" Width="24"/>
+                        <TextBlock Text="{Binding Name}"/>
+                        <TextBlock Text="{Binding Detail}" Opacity="0.7" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Grid>
+</UserControl>

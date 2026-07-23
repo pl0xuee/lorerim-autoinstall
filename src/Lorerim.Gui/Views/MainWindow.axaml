@@ -1,0 +1,77 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Lorerim.Gui.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="720"
+        x:Class="Lorerim.Gui.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/app-icon.ico"
+        Width="1160" Height="760"
+        Title="LoreRim Autoinstall">
+
+    <DockPanel>
+        <!-- Status bar -->
+        <Border DockPanel.Dock="Bottom" Padding="14,8" Background="{StaticResource RunePanel}"
+                BorderThickness="0,1,0,0" BorderBrush="{StaticResource RuneHairline}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Log"
+                        Command="{Binding ToggleLogPaneCommand}" Margin="8,0,0,0"/>
+                <Button DockPanel.Dock="Right" Content="Cancel"
+                        Command="{Binding CancelCommand}"
+                        IsVisible="{Binding IsBusy}" Margin="8,0,0,0"/>
+                <ProgressBar DockPanel.Dock="Right" Width="200" Height="10"
+                             Minimum="0" Maximum="1"
+                             Value="{Binding OverallProgress}"
+                             IsVisible="{Binding IsBusy}" Margin="12,0,0,0"/>
+                <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center"
+                           Classes="mono" Foreground="{StaticResource RuneMuted}"
+                           TextTrimming="CharacterEllipsis"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Log pane -->
+        <Border DockPanel.Dock="Bottom" Height="190"
+                IsVisible="{Binding LogPaneOpen}"
+                BorderThickness="0,1,0,0" BorderBrush="{StaticResource RuneHairline}">
+            <ListBox Classes="log" ItemsSource="{Binding LogLines}"/>
+        </Border>
+
+        <!-- Rail -->
+        <Border DockPanel.Dock="Left" Width="212" Background="{StaticResource RunePanel}"
+                BorderThickness="0,0,1,0" BorderBrush="{StaticResource RuneHairline}">
+            <Grid RowDefinitions="Auto,*,Auto">
+                <StackPanel Grid.Row="0" Margin="18,22,18,18" Spacing="2">
+                    <TextBlock Text="THE ELDER SCROLLS V" FontSize="10" LetterSpacing="3"
+                               Foreground="{StaticResource RuneMuted}"/>
+                    <TextBlock Text="LORERIM" FontSize="26" FontWeight="Bold"
+                               LetterSpacing="4" Foreground="{StaticResource RuneBrass}"/>
+                    <TextBlock Text="WABBAJACK DEPLOYMENT KIT" FontSize="9" LetterSpacing="3"
+                               Foreground="{StaticResource RuneMuted}" Margin="0,6,0,0"/>
+                    <Rectangle Height="1" Fill="{StaticResource RuneHairline}" Margin="0,14,0,0"/>
+                </StackPanel>
+
+                <ListBox Grid.Row="1" Classes="nav" ItemsSource="{Binding NavItems}"
+                         SelectedItem="{Binding SelectedNavItem}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:NavItem">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Classes="nav-icon" Text="{Binding Icon}" Width="18"
+                                           TextAlignment="Center" VerticalAlignment="Center"/>
+                                <TextBlock Classes="nav-label" Text="{Binding Name}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <TextBlock Grid.Row="2" Margin="18,0,18,16" FontSize="10"
+                           Foreground="{StaticResource RuneMuted}"
+                           Text="GPL-3.0 · engine by Omni-guides"/>
+            </Grid>
+        </Border>
+
+        <!-- Page content -->
+        <ContentControl Content="{Binding SelectedNavItem.Page}" Margin="26,22"/>
+    </DockPanel>
+</Window>

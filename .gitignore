@@ -1,0 +1,8 @@
+bin/
+obj/
+publish/
+*.AppImage
+packaging/*.AppDir/usr/
+.vs/
+.idea/
+*.user

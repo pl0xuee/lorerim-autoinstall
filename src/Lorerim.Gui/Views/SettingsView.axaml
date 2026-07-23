@@ -1,0 +1,77 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Lorerim.Gui.ViewModels"
+             x:Class="Lorerim.Gui.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="14" MaxWidth="860">
+            <StackPanel Spacing="2">
+                <TextBlock Classes="eyebrow" Text="CONFIGURATION"/>
+                <TextBlock Classes="h1" Text="Settings"/>
+                <TextBlock Classes="mono muted" Text="{Binding StatusText}" Margin="0,6,0,0"/>
+            </StackPanel>
+
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="eyebrow" Text="DIRECTORIES"/>
+                    <TextBlock Text="Install directory (needs ~330 GB on an SSD)"/>
+                    <TextBox Text="{Binding InstallDir}"/>
+                    <TextBlock Text="Download directory (needs ~250 GB; deletable after install)"/>
+                    <TextBox Text="{Binding DownloadDir}"/>
+                    <CheckBox Content="Set up Steam automatically after installing"
+                              IsChecked="{Binding SetupSteamAfterInstall}"/>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="eyebrow" Text="NEXUS MODS"/>
+                    <TextBlock Text="{Binding OAuthStatus}" Classes="muted"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Sign out" Command="{Binding SignOutCommand}"/>
+                    </StackPanel>
+                    <TextBlock Text="API key fallback (nexusmods.com → Settings → API Keys)"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBox Text="{Binding NexusApiKey}" Width="420" PasswordChar="•"/>
+                        <Button Content="Validate &amp; save" Command="{Binding ValidateApiKeyCommand}"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding ApiKeyStatus}" Classes="muted"/>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="eyebrow" Text="ADVANCED"/>
+                    <TextBlock Text="Preferred Proton"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <ComboBox ItemsSource="{Binding CompatTools}"
+                                  SelectedItem="{Binding SelectedTool}" MinWidth="260"/>
+                        <Button Content="Rescan" Command="{Binding RefreshProtonListCommand}"/>
+                    </StackPanel>
+                    <TextBlock Text="Local .wabbajack file (leave empty to download automatically)"/>
+                    <TextBox Text="{Binding WabbajackFilePath}"/>
+                    <TextBlock Text="Machine URL override (leave empty for LoreRim)"/>
+                    <TextBox Text="{Binding MachineUrlOverride}"/>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="eyebrow" Text="APPLICATION"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Classes="muted" Text="{Binding AppVersionText}" VerticalAlignment="Center"/>
+                        <Button Content="Check for app updates" Command="{Binding CheckAppUpdateCommand}"/>
+                        <Button Classes="accent" Content="Update &amp; restart" Command="{Binding InstallUpdateCommand}"
+                                IsVisible="{Binding CanInstallUpdate}"/>
+                        <Button Content="Open release page" Command="{Binding OpenReleasePageCommand}"
+                                IsVisible="{Binding UpdateUrl, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    </StackPanel>
+                    <TextBlock Classes="muted" Text="{Binding UpdateStatusText}"/>
+                </StackPanel>
+            </Border>
+
+            <Button Content="Save changes" Classes="accent" Command="{Binding SaveCommand}"
+                    HorizontalAlignment="Left" MinWidth="160"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

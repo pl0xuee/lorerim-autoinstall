@@ -1,0 +1,157 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Lorerim.Gui.ViewModels"
+             xmlns:svc="using:Lorerim.Gui.Services"
+             xmlns:eng="using:Lorerim.Gui.Services.Engine"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
+             x:Class="Lorerim.Gui.Views.InstallView"
+             x:DataType="vm:InstallViewModel">
+
+    <ScrollViewer>
+        <StackPanel Spacing="16" MaxWidth="860" HorizontalAlignment="Stretch">
+
+            <StackPanel Spacing="2">
+                <TextBlock Classes="eyebrow" Text="ONE-CLICK DEPLOYMENT"/>
+                <TextBlock Classes="h1" Text="Install LoreRim"/>
+                <TextBlock Classes="muted" TextWrapping="Wrap"
+                           Text="Skyrim Anniversary Edition · ~250 GB of downloads · ~330 GB installed · Nexus Premium recommended"/>
+            </StackPanel>
+
+            <!-- Hero: paths, auth, the one button -->
+            <Border Classes="card-hero">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,8,Auto">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Install to" Classes="muted"
+                                   VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding InstallDir}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Downloads" Classes="muted"
+                                   VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding DownloadDir}"/>
+                    </Grid>
+
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Sign in to Nexus"
+                                Command="{Binding SignInCommand}"
+                                IsVisible="{Binding !IsSignedIn}"/>
+                        <TextBlock Text="{Binding AuthStatus}" VerticalAlignment="Center"
+                                   Classes="muted"/>
+                    </DockPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button Classes="accent" MinWidth="220" MinHeight="44"
+                                HorizontalContentAlignment="Center"
+                                Content="INSTALL LORERIM"
+                                Command="{Binding InstallCommand}"/>
+                        <Button Content="Run checks"
+                                VerticalAlignment="Center"
+                                Command="{Binding RunPreflightCommand}"/>
+                        <TextBlock Text="{Binding CheckResultText}" Classes="muted"
+                                   VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                               Text="Already installed? The same button updates or repairs LoreRim in place — only changed files are downloaded."/>
+                </StackPanel>
+            </Border>
+
+            <!-- Preflight checklist -->
+            <Border Classes="card" IsVisible="{Binding !!Checks.Count}">
+                <StackPanel Spacing="6">
+                    <TextBlock Classes="eyebrow" Text="PREFLIGHT"/>
+                    <ItemsControl ItemsSource="{Binding Checks}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="svc:PreflightCheck">
+                                <Grid ColumnDefinitions="60,180,*" Margin="0,2">
+                                    <TextBlock Grid.Column="0" Text="{Binding State}" Classes="mono"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding Detail}" Classes="muted"
+                                               TextWrapping="Wrap"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Install phases -->
+            <Border Classes="card">
+                <StackPanel Spacing="6">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding OverallCounter}"
+                                   Classes="mono muted"/>
+                        <TextBlock Classes="eyebrow" Text="PROGRESS"/>
+                    </DockPanel>
+                    <ItemsControl ItemsSource="{Binding Phases}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PhaseRow">
+                                <Grid ColumnDefinitions="24,300,*" Margin="0,2">
+                                    <TextBlock Grid.Column="0" Text="{Binding State}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding Detail}" Classes="muted"
+                                               TextWrapping="Wrap"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Manual downloads (rare with Premium) -->
+            <Border Classes="card" IsVisible="{Binding ShowManualDownloads}"
+                    BorderBrush="{StaticResource RuneBrass}">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="eyebrow" Text="MANUAL DOWNLOADS NEEDED"/>
+                    <TextBlock Classes="muted" TextWrapping="Wrap"
+                               Text="These files can't be fetched automatically. Download each one into your downloads folder, then continue."/>
+                    <ItemsControl ItemsSource="{Binding ManualDownloads}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="eng:ManualDownload">
+                                <SelectableTextBlock Margin="0,2" Text="{Binding Url}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Classes="accent" Content="I've downloaded them — continue"
+                            Command="{Binding ContinueManualDownloadsCommand}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Per-file progress grid -->
+            <Border Classes="card" IsVisible="{Binding !!FileRows.Count}">
+                <StackPanel Spacing="6">
+                    <TextBlock Classes="eyebrow" Text="FILES"/>
+                    <DataGrid ItemsSource="{Binding FileRows}" Height="260"
+                              IsReadOnly="True" AutoGenerateColumns="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="File" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="Phase" Binding="{Binding Phase}" Width="130"/>
+                            <DataGridTemplateColumn Header="Progress" Width="160">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate x:DataType="vm:FileProgressRow">
+                                        <ProgressBar Minimum="0" Maximum="1" Value="{Binding Progress}"
+                                                     Height="8" Margin="4,0"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Speed" Binding="{Binding Speed}" Width="110"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+
+            <!-- First-launch guidance -->
+            <Border Classes="card" IsVisible="{Binding ShowFirstLaunchGuide}"
+                    BorderBrush="{StaticResource RuneBrass}">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="eyebrow" Text="BEFORE YOUR FIRST LAUNCH"/>
+                    <TextBlock TextWrapping="Wrap" Text="LoreRim is installed and 'LoreRim' is in your Steam library. A few things to know:"/>
+                    <TextBlock TextWrapping="Wrap" Classes="muted" Text="• Launch it from Steam — Mod Organizer 2 opens. Pick your profile on the left (Default or Ultra) and press Run."/>
+                    <TextBlock TextWrapping="Wrap" Classes="muted" Text="• The first launch takes several minutes (Proton setup + shader compilation). A black screen or slow menus at first are normal."/>
+                    <TextBlock TextWrapping="Wrap" Classes="muted" Text="• Do not click the 'Unlock' button in Mod Organizer while the game is starting."/>
+                    <TextBlock TextWrapping="Wrap" Classes="muted" Text="• Don't let Steam update Skyrim afterwards — LoreRim manages its own game files."/>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
