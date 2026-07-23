@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## v0.1.4
 
+Makes a finished install actually load its mods, and lets you choose the resolution it runs at.
+
+- The game's `AppData/Local/Skyrim Special Edition` folder is now created inside the Proton prefix. Mod Organizer redirects the game's `plugins.txt` onto it; a freshly created prefix does not have it, because Skyrim itself makes that folder and Skyrim runs under its own appid in a different prefix. Without it no redirect is established and the game launches with **every plugin disabled** — a complete install behaving as though nothing were installed
+- That failure surfaced as a fatal dialog from whichever mod checked for its plugin first, telling the user to reinstall that mod by hand. The mod was innocent: vanilla masters were missing too. It affected every fresh install, so it would have hit anyone following the same path
 - The install page and Settings now offer a game resolution, and report when the installed one matches no connected display. LoreRim ships 3840x2160, which on a 3440x1440 ultrawide means rendering 4K 16:9 and upscaling onto a 21:9 panel with nothing saying so
 - Resolutions come from `/sys/class/drm` rather than xrandr, because xrandr reports the current layout: a 4K panel being driven at 1440p appears as a 1440p panel, and a rotated one appears portrait. Every distinct resolution across all displays is offered, labelled with the displays providing it, with the primary's native mode first
 - The choice is written to every MO2 profile, so switching profile does not silently revert it. Only the digits in the existing `iSize` lines are replaced, leaving BethINI's BOM, CRLF terminators and formatting untouched
