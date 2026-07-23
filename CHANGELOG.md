@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.1.3
+
+Stops a Proton problem from costing you a finished install.
 
 - The modlist compatibility pass now runs even when an earlier Steam setup step fails. It was last in the sequence, so a Steam problem it has nothing to do with meant a fully installed 300 GB modlist was left with the crashing JContainers DLL still in place. A cancelled run is the one case that still skips it, and a failure inside the pass is logged rather than allowed to mask the Steam failure that caused it
 - The disk-space preflight no longer blocks a re-run over an existing install. It compared free space against the size of a *fresh* install — 600 GB when both folders share a drive — without accounting for the install and downloads already sitting there, so updating a working setup demanded room for a second copy of it. With an install already present the shortfall is now a warning that says the engine only downloads what changed; a genuinely full disk (under 20 GB free) still fails
