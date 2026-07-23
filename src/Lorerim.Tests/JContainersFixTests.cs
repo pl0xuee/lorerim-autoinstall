@@ -286,7 +286,7 @@ public class JContainersFixTests : IDisposable
         // No network and no engine needed to decide there is nothing to do — the install
         // pipeline runs this unconditionally, so the no-op path must stay free of both.
         WriteSkse(JContainersFix.TargetSkseDll);
-        var service = new ModFixupService(new UnusableHttpClientFactory(), new JackifyEngineLocator(), new LogService());
+        var service = new ModFixupService(new UnusableHttpClientFactory(), new JackifyEngineLocator(), new LogService(null));
 
         Assert.Equal(0, await service.ApplyJContainersFixAsync(_root, CancellationToken.None));
     }
@@ -298,7 +298,7 @@ public class JContainersFixTests : IDisposable
         // cause, so an install that needs the fix and cannot apply it has to say so.
         WriteSkse(JContainersFix.TargetSkseDll);
         var dll = WriteJContainers("JContainers SE", "nexus build");
-        var service = new ModFixupService(new UnusableHttpClientFactory(), new NoEngineLocator(), new LogService());
+        var service = new ModFixupService(new UnusableHttpClientFactory(), new NoEngineLocator(), new LogService(null));
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.ApplyAsync(_root, CancellationToken.None)
@@ -317,7 +317,7 @@ public class JContainersFixTests : IDisposable
         var service = new ModFixupService(
             new FixedBytesHttpClientFactory("not the real archive"u8.ToArray()),
             new NoEngineLocator(),
-            new LogService()
+            new LogService(null)
         );
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -353,7 +353,7 @@ public class JContainersFixTests : IDisposable
     {
         // The archive is ~1 MB. A server that never stops sending must not be allowed to
         // write until the temp filesystem is full.
-        var service = new ModFixupService(new EndlessHttpClientFactory(), new NoEngineLocator(), new LogService());
+        var service = new ModFixupService(new EndlessHttpClientFactory(), new NoEngineLocator(), new LogService(null));
         var destination = Path.Join(_root, "archive.7z");
 
         await Assert.ThrowsAsync<InvalidOperationException>(

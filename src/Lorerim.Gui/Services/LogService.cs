@@ -14,12 +14,24 @@ public class LogService
     public event Action<string>? LineAdded;
 
     public LogService()
+        : this(Path.Join(Models.AppSettings.AppDataPath, "logs")) { }
+
+    /// <summary>
+    /// Sinks to <paramref name="logDirectory"/>, or to memory only when it is null. Anything
+    /// that is not the running app — tests above all — must pass null: writing to the real
+    /// log interleaves lines into the record a user reads to diagnose a failed install.
+    /// </summary>
+    internal LogService(string? logDirectory)
     {
+        if (logDirectory is null)
+        {
+            _logFile = null;
+            return;
+        }
         try
         {
-            var logDir = Path.Join(Models.AppSettings.AppDataPath, "logs");
-            Directory.CreateDirectory(logDir);
-            _logFile = Path.Join(logDir, "lorerim-autoinstall.log");
+            Directory.CreateDirectory(logDirectory);
+            _logFile = Path.Join(logDirectory, "lorerim-autoinstall.log");
         }
         catch
         {

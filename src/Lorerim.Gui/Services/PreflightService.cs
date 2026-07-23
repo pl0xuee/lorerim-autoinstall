@@ -173,7 +173,10 @@ public class PreflightService(
                         "Disk space",
                         installVolume.AvailableFreeSpace,
                         requiredDownload + requiredInstall,
-                        $"{installVolume.RootDirectory.FullName} (downloads and install share it)"
+                        $"{installVolume.RootDirectory.FullName} (downloads and install share it)",
+                        // One budget covers both folders here, so either one already being on
+                        // disk means the requirement overstates what the run actually needs.
+                        HasExistingInstall(installDir) || HasExistingDownloads(downloadDir)
                     ),
                 ];
             }
@@ -183,13 +186,15 @@ public class PreflightService(
                     "Download space",
                     downloadVolume.AvailableFreeSpace,
                     requiredDownload,
-                    downloadVolume.RootDirectory.FullName
+                    downloadVolume.RootDirectory.FullName,
+                    HasExistingDownloads(downloadDir)
                 ),
                 BuildSpaceCheck(
                     "Install space",
                     installVolume.AvailableFreeSpace,
                     requiredInstall,
-                    installVolume.RootDirectory.FullName
+                    installVolume.RootDirectory.FullName,
+                    HasExistingInstall(installDir)
                 ),
             ];
         }
@@ -256,23 +261,77 @@ public class PreflightService(
         return path.StartsWith(prefix, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Headroom an update still needs even though most of the modlist is already on disk.
+    /// Below this, a re-run genuinely cannot write and should stop.
+    /// </summary>
+    public const long UpdateHeadroomBytes = 20L * 1024 * 1024 * 1024;
+
+    /// <summary>
+    /// Whether a modlist is already installed here. Deliberately two cheap lookups rather
+    /// than a walk: preflight runs every time the page opens, and the install tree holds
+    /// hundreds of thousands of files.
+    /// </summary>
+    internal static bool HasExistingInstall(string installDir)
+    {
+        try
+        {
+            return File.Exists(Path.Join(installDir, "ModOrganizer.exe"))
+                // Mid-run the engine deletes and rewrites files at the root, so a populated
+                // mods tree is the more dependable signal.
+                || Directory.EnumerateFileSystemEntries(Path.Join(installDir, "mods")).Any();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    internal static bool HasExistingDownloads(string downloadDir)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(downloadDir).Any();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     internal static PreflightCheck BuildSpaceCheck(
         string name,
         long free,
         long required,
-        string where
+        string where,
+        bool existingInstall = false
     )
     {
         var freeGb = free / (1024.0 * 1024 * 1024);
         var requiredGb = required / (1024.0 * 1024 * 1024);
-        return free >= required
-            ? new PreflightCheck(name, CheckState.Ok, $"{freeGb:F0} GB free on {where}")
-            : new PreflightCheck(
+        if (free >= required)
+        {
+            return new PreflightCheck(name, CheckState.Ok, $"{freeGb:F0} GB free on {where}");
+        }
+        // The requirement describes a fresh install. Re-running over an existing one reuses
+        // what is already there, so demanding room for a second copy would block the update
+        // and push the user into deleting the install they are trying to update.
+        if (existingInstall && free >= UpdateHeadroomBytes)
+        {
+            return new PreflightCheck(
                 name,
-                CheckState.Fail,
-                $"{freeGb:F0} GB free on {where}, {requiredGb:F0} GB needed — "
-                    + "point one of the folders at another drive, or free up space"
+                CheckState.Warn,
+                $"{freeGb:F0} GB free on {where}, below the {requiredGb:F0} GB a fresh install "
+                    + "needs — continuing anyway because an existing install is already there and "
+                    + "the engine only downloads what changed"
             );
+        }
+        return new PreflightCheck(
+            name,
+            CheckState.Fail,
+            $"{freeGb:F0} GB free on {where}, {requiredGb:F0} GB needed — "
+                + "point one of the folders at another drive, or free up space"
+        );
     }
 
     /// <summary>Warn when the install dir sits on a rotational disk — LoreRim wants an SSD.</summary>

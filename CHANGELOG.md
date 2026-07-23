@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- The disk-space preflight no longer blocks a re-run over an existing install. It compared free space against the size of a *fresh* install — 600 GB when both folders share a drive — without accounting for the install and downloads already sitting there, so updating a working setup demanded room for a second copy of it. With an install already present the shortfall is now a warning that says the engine only downloads what changed; a genuinely full disk (under 20 GB free) still fails
+- Unit tests no longer write into the real application log at `~/.config/lorerim-autoinstall/logs/`, which was interleaving test lines into the record used to diagnose installs
+
 ## v0.1.2
 
 Fixes a crash on launch that a completed install could not avoid on its own.
