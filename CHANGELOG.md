@@ -1,10 +1,15 @@
 # Changelog
 
-## Unreleased
+## v0.1.2
 
-- Steam setup now ends with a Linux compatibility pass over the installed modlist. It replaces JContainers SE's DLL — every Nexus release up to 4.2.9.0 crashes under Proton, taking Wheeler and anything else built on JContainers down with it — with the author's patched build, applied only to installs on the SKSE runtime it targets. The shipped DLL is kept alongside as `.nexus.bak`, and re-running the pass on a patched install does nothing.
-  - Both the downloaded archive and the extracted DLL are checked against pinned SHA-256 hashes, so nothing unverified reaches the extractor or the game folder; the download is capped, retried on transient failures, and given an explicit timeout rather than being reported as a cancelled install.
-  - Mod folders are matched case-insensitively: archives authored on Windows land as `skse/plugins` or `Root`/`root` on a case-sensitive filesystem, and a missed DLL would have meant a crash on launch with nothing in the log to explain it. Each outcome — not present, unsupported SKSE runtime, already patched, patched now — is logged distinctly for the same reason.
+Fixes a crash on launch that a completed install could not avoid on its own.
+
+- Steam setup now ends with a Linux compatibility pass over the installed modlist, and the same pass runs directly when Steam setup is switched off so it cannot be skipped
+- JContainers SE's DLL is replaced with the author's patched build: every Nexus release up to 4.2.9.0 crashes under Proton, taking Wheeler and anything else built on JContainers down with it. Only installs on the SKSE runtime the patched build targets are touched
+- The shipped DLL is kept beside the new one as `.nexus.bak`, written atomically so an interrupted run cannot leave a truncated backup that a later run would trust. Re-running the pass on a patched install does nothing
+- Both the downloaded archive and the extracted DLL are checked against pinned SHA-256 hashes, so nothing unverified reaches the extractor or the game folder. The download is size-capped, retried on transient failures, and given an explicit timeout rather than surfacing as a cancelled install
+- Extraction reuses the 7-Zip binary the jackify-engine already bundles, so the fix adds no new dependency
+- Mod folders are matched case-insensitively: archives authored on Windows land as `skse/plugins` or `root` on a case-sensitive filesystem, and a missed DLL would have meant a crash on launch with nothing in the log to explain it. Each outcome — not present, unsupported SKSE runtime, already patched, patched now — is logged distinctly, and an install that needs the fix but cannot apply it fails loudly instead of skipping
 
 ## v0.1.1
 
