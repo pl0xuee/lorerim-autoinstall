@@ -26,6 +26,7 @@ public class ProtonPrefixService(LogService log)
         if (Directory.Exists(pfx) && File.Exists(Path.Join(pfx, "system.reg")))
         {
             log.Append($"Prefix already exists at {pfx}");
+            PrepareGameAppData(pfx);
             return;
         }
 
@@ -79,11 +80,76 @@ public class ProtonPrefixService(LogService log)
             if (Directory.Exists(pfx) && File.Exists(Path.Join(pfx, "system.reg")))
             {
                 log.Append($"Prefix created at {pfx}");
+                PrepareGameAppData(pfx);
                 return;
             }
             await Task.Delay(1000, ct);
         }
         throw new InvalidOperationException($"Proton prefix was not created at {pfx}");
+    }
+
+    /// <summary>
+    /// Runs on both paths out of <see cref="CreateAsync"/>: a prefix that already exists needs
+    /// this just as much as a new one, since the folder is missing until Skyrim itself makes it.
+    /// </summary>
+    private void PrepareGameAppData(string pfx)
+    {
+        var created = EnsureSkyrimLocalAppData(pfx);
+        if (created > 0)
+        {
+            log.Append(
+                $"Prepared the game's AppData folder in the prefix ({created}) so Mod Organizer "
+                    + "can apply the load order."
+            );
+        }
+    }
+
+    /// <summary>
+    /// Creates AppData/Local/Skyrim Special Edition inside the prefix, for every user profile
+    /// it contains.
+    ///
+    /// MO2 redirects the game's plugins.txt onto that folder. On Windows it always exists
+    /// because Skyrim has run; in a shortcut's freshly created Proton prefix it does not,
+    /// because Skyrim runs under its own appid in a different prefix. Without it MO2
+    /// establishes no redirect, Skyrim writes its own load order with every plugin disabled,
+    /// and the game launches as though no mod were installed — surfacing as a fatal error
+    /// from whichever mod checks for its plugin first, which blames itself rather than this.
+    ///
+    /// Returns how many were created. Nothing is written when they already exist: the folder
+    /// holds the load order once the game has run, and it must never be disturbed.
+    /// </summary>
+    internal static int EnsureSkyrimLocalAppData(string pfx)
+    {
+        var users = Path.Join(pfx, "drive_c", "users");
+        if (!Directory.Exists(users))
+        {
+            return 0;
+        }
+        var created = 0;
+        foreach (var user in Directory.GetDirectories(users))
+        {
+            // "Public" is a shared skeleton profile; the game never reads a load order there.
+            if (Path.GetFileName(user).Equals("Public", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+            var gameDir = Path.Join(user, "AppData", "Local", "Skyrim Special Edition");
+            if (Directory.Exists(gameDir))
+            {
+                continue;
+            }
+            try
+            {
+                Directory.CreateDirectory(gameDir);
+                created++;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Best effort: a prefix we cannot write to is a problem the caller will hit
+                // more loudly than this, and throwing here would fail an otherwise fine setup.
+            }
+        }
+        return created;
     }
 
     public bool PrefixExists(SteamInstallation steam, long unsignedAppId) =>
