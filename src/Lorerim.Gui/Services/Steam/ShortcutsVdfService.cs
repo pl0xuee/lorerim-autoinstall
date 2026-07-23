@@ -38,6 +38,19 @@ public class ShortcutsVdfService
     }
 
     /// <summary>
+    /// Returns the existing shortcut matching <paramref name="appName"/> (case-insensitive) that
+    /// has a usable non-zero appid, or null. A zero appid cannot key a Proton prefix or a
+    /// CompatToolMapping entry, so it counts as "not found" and the caller writes normally.
+    /// Lets an install re-run leave a user's Steam entry untouched instead of rewriting it.
+    /// </summary>
+    public SteamShortcut? Find(SteamInstallation steam, string appName) =>
+        List(steam)
+            .FirstOrDefault(s =>
+                s.SignedAppId != 0
+                && string.Equals(s.AppName, appName, StringComparison.OrdinalIgnoreCase)
+            );
+
+    /// <summary>
     /// Adds (or replaces, matching on AppName) a shortcut. Returns the shortcut with its appid.
     /// Steam must not be running while this is written.
     /// </summary>

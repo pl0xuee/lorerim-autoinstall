@@ -19,7 +19,11 @@ public sealed record SteamSetupContext(
     CompatTool Tool,
     string AppName,
     string Mo2Exe,
-    string LaunchOptions
+    string LaunchOptions,
+    // When true, an existing shortcut for this AppName is left untouched (an install re-run
+    // must not clobber or duplicate a user's Steam entry). The standalone Steam Setup page
+    // leaves this false so it can (re)write or repair the entry on demand.
+    bool PreserveExistingShortcut = false
 )
 {
     public string StartDir => Path.GetDirectoryName(Mo2Exe)!;
@@ -78,6 +82,19 @@ public class SteamIntegrationService(
             1,
             () =>
             {
+                var existing = ctx.PreserveExistingShortcut
+                    ? shortcutsVdf.Find(ctx.Steam, ctx.AppName)
+                    : null;
+                if (existing is not null)
+                {
+                    // Leave the user's entry (and its compat tool + artwork) exactly as they are;
+                    // reuse its appid so the prefix/protontricks/fixes below still target it.
+                    shortcut = existing;
+                    log.Append(
+                        $"Existing Steam shortcut '{ctx.AppName}' found (appid {existing.SignedAppId}, compat key {existing.UnsignedAppId}); leaving it untouched."
+                    );
+                    return Task.CompletedTask;
+                }
                 shortcut = shortcutsVdf.Upsert(
                     ctx.Steam,
                     ctx.AppName,

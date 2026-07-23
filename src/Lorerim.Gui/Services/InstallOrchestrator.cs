@@ -192,7 +192,10 @@ public class InstallOrchestrator(
                 tool,
                 SteamShortcutName,
                 mo2Exe,
-                SteamIntegrationService.BuildLaunchOptions([installDir, downloadDir])
+                SteamIntegrationService.BuildLaunchOptions([installDir, downloadDir]),
+                // An update is just a re-run of this install; if the user already has a
+                // "LoreRim" Steam entry, leave it untouched rather than rewriting or duplicating it.
+                PreserveExistingShortcut: true
             );
             await steamIntegration.RunAsync(
                 ctx,
