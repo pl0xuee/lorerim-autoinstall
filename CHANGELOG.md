@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The modlist compatibility pass now runs even when an earlier Steam setup step fails. It was last in the sequence, so a Steam problem it has nothing to do with meant a fully installed 300 GB modlist was left with the crashing JContainers DLL still in place. A cancelled run is the one case that still skips it, and a failure inside the pass is logged rather than allowed to mask the Steam failure that caused it
 - The disk-space preflight no longer blocks a re-run over an existing install. It compared free space against the size of a *fresh* install — 600 GB when both folders share a drive — without accounting for the install and downloads already sitting there, so updating a working setup demanded room for a second copy of it. With an install already present the shortfall is now a warning that says the engine only downloads what changed; a genuinely full disk (under 20 GB free) still fails
 - Unit tests no longer write into the real application log at `~/.config/lorerim-autoinstall/logs/`, which was interleaving test lines into the record used to diagnose installs
 - A Proton build whose Steam Linux Runtime is not installed no longer breaks the install. Proton runs inside the runtime its `toolmanifest.vdf` pins, so GE-Proton10-34 without Steam Linux Runtime 3.0 (sniper) fails at the protontricks step — after the engine has already installed 300 GB. Selection now skips builds whose runtime is missing and falls through to the newest usable GE-Proton, then Proton-CachyOS, then any build that can run

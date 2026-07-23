@@ -230,6 +230,21 @@ public class LorerimProtonTests
     }
 
     [Fact]
+    public void BlankPinBehavesAsNoPin()
+    {
+        // settings.json is hand-editable, so a blank pin must not quietly turn into "no tool
+        // was wanted" — that suppresses the substitution the user needs to see.
+        var selection = LorerimProton.Select(
+            [Tool("GE-Proton10-34", 1628350), Tool("GE-Proton11-1", 4183110)],
+            Slr4Only,
+            pinned: "  "
+        );
+
+        Assert.Equal("GE-Proton11-1", selection.Tool!.InternalName);
+        Assert.Equal("GE-Proton10-34", selection.SubstitutedFor!.InternalName);
+    }
+
+    [Fact]
     public void ToolWithoutARuntimeRequirementIsAlwaysUsable()
     {
         var selection = LorerimProton.Select([Tool("GE-Proton10-34")], _ => false, pinned: null);

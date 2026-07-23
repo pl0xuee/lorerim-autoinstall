@@ -58,6 +58,20 @@ public class SteamIntegrationService(
         CancellationToken ct = default
     )
     {
+        await RunWithFixupsAsync(
+            () => RunSteamStepsAsync(ctx, report, ct),
+            () => Step(5, () => modFixups.ApplyAsync(ctx.StartDir, ct), report),
+            message => log.Append($"Compatibility fixes could not be applied: {message}"),
+            ct
+        );
+    }
+
+    private async Task RunSteamStepsAsync(
+        SteamSetupContext ctx,
+        Action<int, StepState, string>? report,
+        CancellationToken ct
+    )
+    {
         SteamShortcut shortcut = null!;
         await Step(0, () => steamProcess.ShutdownAsync(ct), report);
         await Step(
@@ -92,9 +106,40 @@ public class SteamIntegrationService(
             ),
             report
         );
-        // Last, because it is the only step that touches the modlist rather than Steam, and
-        // re-running it after a failure is cheap: an already-patched install is a no-op.
-        await Step(5, () => modFixups.ApplyAsync(ctx.StartDir, ct), report);
+    }
+
+    /// <summary>
+    /// Runs the Steam steps, then the modlist compatibility pass — and runs that pass even
+    /// when a Steam step fails. By that point the modlist is fully installed, so skipping it
+    /// leaves an install that crashes on launch over a Steam problem that has nothing to do
+    /// with it. A cancelled run is the one case that skips it: the user asked to stop.
+    /// </summary>
+    internal static async Task RunWithFixupsAsync(
+        Func<Task> steamSteps,
+        Func<Task> applyFixups,
+        Action<string> onFixupError,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            await steamSteps();
+        }
+        catch (Exception) when (!ct.IsCancellationRequested)
+        {
+            // Logged rather than thrown: the Steam failure is the one worth surfacing, and
+            // replacing it with a fixup error would hide what actually went wrong.
+            try
+            {
+                await applyFixups();
+            }
+            catch (Exception fixupError)
+            {
+                onFixupError(fixupError.Message);
+            }
+            throw;
+        }
+        await applyFixups();
     }
 
     /// <summary>STEAM_COMPAT_MOUNTS for any LoreRim path outside the home mount, always ending in %command%.</summary>

@@ -146,7 +146,7 @@ public static partial class LorerimProton
     {
         var ranked = Order(tools).ToList();
         var wanted =
-            pinned is null
+            string.IsNullOrWhiteSpace(pinned)
                 ? ranked.FirstOrDefault()
                 : ranked.FirstOrDefault(t =>
                     t.InternalName.Equals(pinned, StringComparison.OrdinalIgnoreCase)
@@ -177,6 +177,18 @@ public static partial class LorerimProton
             ReferenceEquals(chosen, wanted) ? null : wanted
         );
     }
+
+    /// <summary>
+    /// Why a build was passed over. The two causes need different words from the user: a
+    /// missing runtime is fixable by installing it, while a compatibility override is a rule.
+    /// </summary>
+    public static string SubstitutionReason(
+        CompatTool replaced,
+        Func<int, bool> runtimeInstalled
+    ) =>
+        replaced.RequiredRuntimeAppId is { } appId && !runtimeInstalled(appId)
+            ? $"needs {SteamRuntimeCatalog.Describe(appId)}, which is not installed"
+            : "is known not to work with LoreRim";
 
     private static bool IsUsable(CompatTool tool, Func<int, bool> runtimeInstalled) =>
         tool.RequiredRuntimeAppId is not { } appId || runtimeInstalled(appId);

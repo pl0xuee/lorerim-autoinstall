@@ -223,12 +223,7 @@ public class InstallOrchestrator(
         var selection = LorerimProton.Select(tools, runtimeInstalled, preferred);
         if (selection.SubstitutedFor is { } replaced && selection.Tool is { } chosen)
         {
-            // Why the substitution happened matters: a missing Steam Linux Runtime is fixable
-            // by installing it, whereas a compatibility override is a deliberate rule.
-            var cause =
-                replaced.RequiredRuntimeAppId is { } appId && !runtimeInstalled(appId)
-                    ? $"needs {SteamRuntimeCatalog.Describe(appId)}, which is not installed"
-                    : "is known not to work with LoreRim";
+            var cause = LorerimProton.SubstitutionReason(replaced, runtimeInstalled);
             log.Append($"{replaced.DisplayName} {cause}; using {chosen.DisplayName} instead.");
         }
         return selection.Tool;

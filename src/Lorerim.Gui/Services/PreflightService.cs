@@ -130,7 +130,7 @@ public class PreflightService(
         {
             var blocked = selection.SubstitutedFor;
             var reason =
-                blocked?.RequiredRuntimeAppId is { } appId
+                blocked?.RequiredRuntimeAppId is { } appId && !runtimeInstalled(appId)
                     ? $"{blocked.DisplayName} needs {SteamRuntimeCatalog.Describe(appId)}, "
                         + "which is not installed, and no other build can run either. "
                     : "No installed Proton build can run. ";
@@ -140,10 +140,7 @@ public class PreflightService(
         var chosen = selection.Tool;
         if (selection.SubstitutedFor is { } replaced)
         {
-            var cause =
-                replaced.RequiredRuntimeAppId is { } appId
-                    ? $"needs {SteamRuntimeCatalog.Describe(appId)}, which is not installed"
-                    : "cannot run on this machine";
+            var cause = LorerimProton.SubstitutionReason(replaced, runtimeInstalled);
             return new PreflightCheck(
                 "Proton",
                 CheckState.Warn,

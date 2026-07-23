@@ -77,6 +77,21 @@ public class PreflightProtonTests
         Assert.Contains("proton-cachyos-slr", check.Detail);
     }
 
+    [Fact]
+    public void OverriddenUnsupportedPinIsNotBlamedOnAMissingRuntime()
+    {
+        // Both builds run on the installed runtime. The substitution happened because the pin
+        // is known not to work with LoreRim, so saying its runtime is missing is simply false.
+        var check = PreflightService.ProtonCheck(
+            [Tool("proton_experimental", 4183110), Tool("GE-Proton11-1", 4183110)],
+            Slr4Only,
+            pinned: "proton_experimental"
+        );
+
+        Assert.Equal(CheckState.Warn, check.State);
+        Assert.DoesNotContain("not installed", check.Detail);
+    }
+
     [Theory]
     [InlineData(1628350, "sniper")]
     [InlineData(1391110, "soldier")]
