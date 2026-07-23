@@ -8,4 +8,4 @@ Categories=Game;Utility;
 Terminal=false
 StartupWMClass=Lorerim.Gui
 MimeType=x-scheme-handler/jackify;
-X-AppImage-Version=0.1.4
+X-AppImage-Version=0.1.5

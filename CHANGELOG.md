@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.5
+
+Keeps an update from disturbing the Steam entry you already set up, and gives the status bar a progress bar that actually moves.
+
+- Applying a modlist update re-runs the installer, which used to rewrite your `LoreRim` Steam entry every time — its executable path, launch options, icon, compatibility-tool mapping and grid artwork. An existing entry is now left untouched: the install reuses its appid so the Proton prefix, prerequisites and compatibility fixes still refresh, while any customisation you made to the library entry — including your own launch options — survives, and it never adds a second entry
+- A preserved entry that is missing its Proton mapping — from a first run that failed after writing the shortcut — has the mapping restored so it still launches, without overwriting a Proton version you picked by hand. The standalone Steam Setup page still writes on demand, so it remains the way to recreate or repair an entry deliberately
+- The status-bar progress bar no longer sits frozen at zero. It only advanced when the engine printed its optional `(file/total)` counter, which the current engine omits — and never during Steam setup or the Proton prerequisites, which report no per-file progress at all. It now animates whenever work is happening, and shows a real fraction, weighted by the current file's own percent, whenever a count is available
+
 ## v0.1.4
 
 Makes a finished install actually load its mods, and lets you choose the resolution it runs at.
