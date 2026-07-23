@@ -38,6 +38,9 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     public partial string OAuthStatus { get; set; } = "";
 
+    [ObservableProperty]
+    public partial bool IsSignedIn { get; set; }
+
     public ObservableCollection<CompatTool> CompatTools { get; } = [];
 
     [ObservableProperty]
@@ -167,12 +170,16 @@ public partial class SettingsViewModel : ViewModelBase
         _log.Append("Signed out of Nexus (OAuth token deleted).");
     }
 
+    /// <summary>Re-read auth state when the page is shown (sign-in happens on the Install page).</summary>
+    public void RefreshAuthState() => RefreshOAuthStatus();
+
     private void RefreshOAuthStatus()
     {
         var token = _tokenStore.Load();
-        OAuthStatus = token?.AccessToken is null
-            ? "Not signed in — use the Install page to sign in via browser."
-            : $"Signed in{(token.UserName is null ? "" : $" as {token.UserName}")}{(token.IsPremium ? " (Premium)" : "")}";
+        IsSignedIn = token?.AccessToken is not null;
+        OAuthStatus = IsSignedIn
+            ? $"Signed in{(token!.UserName is null ? "" : $" as {token.UserName}")}{(token.IsPremium ? " (Premium)" : "")}"
+            : "Not signed in — use the Install page to sign in via browser.";
     }
 
     [RelayCommand]
