@@ -62,7 +62,8 @@
                         <Button Content="Apply now" Command="{Binding ApplyResolutionCommand}"/>
                         <Button Content="Rescan" Command="{Binding RefreshResolutionsCommand}"/>
                     </StackPanel>
-                    <TextBlock Text="{Binding ResolutionStatus}" Classes="muted"/>
+                    <TextBlock Text="{Binding ResolutionStatus}" Classes="muted"
+                               TextWrapping="Wrap"/>
                     <TextBlock Text="Local .wabbajack file (leave empty to download automatically)"/>
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBox Grid.Column="0" Text="{Binding WabbajackFilePath}"/>

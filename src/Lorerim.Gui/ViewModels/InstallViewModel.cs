@@ -101,6 +101,29 @@ public partial class InstallViewModel : ViewModelBase
     // other with stale values (disk persistence still happens on explicit actions).
     public ObservableCollection<ResolutionOption> Resolutions { get; } = [];
 
+    /// <summary>
+    /// Rebuilds the list from the displays connected right now, keeping the current choice.
+    /// Built once at startup it would never notice a monitor being plugged in, and this page
+    /// has no rescan button of its own — re-checking is where a user already expects a
+    /// refresh of what the app can see.
+    /// </summary>
+    private void RefreshResolutionOptions()
+    {
+        var current = SelectedResolution?.Value ?? _settings.Settings.PreferredResolution;
+        Resolutions.Clear();
+        foreach (
+            var option in ResolutionOption.Build(
+                _displayCatalog.Choices(),
+                current,
+                _displayCatalog.PrimaryIsGuess
+            )
+        )
+        {
+            Resolutions.Add(option);
+        }
+        SelectedResolution = ResolutionOption.Select(Resolutions, current);
+    }
+
     [ObservableProperty]
     public partial ResolutionOption? SelectedResolution { get; set; }
 
@@ -168,21 +191,8 @@ public partial class InstallViewModel : ViewModelBase
         InstallDir = settings.Settings.InstallDir;
         DownloadDir = settings.Settings.DownloadDir;
 
-        // Offered before the run so a first install lands on the right resolution, but the
-        // write happens after the engine finishes — the profiles do not exist until then.
-        var storedResolution = settings.Settings.PreferredResolution;
-        var resolutionChoices = displayCatalog.Choices();
-        foreach (
-            var option in ResolutionOption.Build(
-                resolutionChoices,
-                storedResolution,
-                displayCatalog.PrimaryIsGuess
-            )
-        )
-        {
-            Resolutions.Add(option);
-        }
-        SelectedResolution = ResolutionOption.Select(Resolutions, storedResolution);
+        _displayCatalog = displayCatalog;
+        RefreshResolutionOptions();
 
         foreach (var phase in PhaseNames.Keys)
         {
@@ -322,6 +332,7 @@ public partial class InstallViewModel : ViewModelBase
             return;
         }
         await PersistDirsAsync();
+        RefreshResolutionOptions();
         await RefreshChecksAsync();
     }
 
@@ -482,6 +493,7 @@ public partial class InstallViewModel : ViewModelBase
 
     private readonly OperationRunner _runner;
     private readonly SettingsService _settings;
+    private readonly DisplayCatalog _displayCatalog;
     private readonly LogService _log;
     private readonly InstallOrchestrator _orchestrator;
     private readonly PreflightService _preflightService;
