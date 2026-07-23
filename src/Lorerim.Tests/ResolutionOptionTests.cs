@@ -44,6 +44,34 @@ public class ResolutionOptionTests
     }
 
     [Fact]
+    public void AnAssumedPrimaryIsNotPresentedAsFact()
+    {
+        // Without xrandr the largest output is assumed to be primary. Labelling that "primary"
+        // outright would state something the app does not actually know.
+        var options = ResolutionOption.Build(
+            [Choice(3440, 1440, true, "DP-1")],
+            stored: null,
+            primaryIsGuess: true
+        );
+
+        var label = options.Single(o => o.Value == "3440x1440").Label;
+        Assert.Contains("assumed", label, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AKnownPrimaryIsNotHedged()
+    {
+        var options = ResolutionOption.Build(
+            [Choice(3440, 1440, true, "DP-1")],
+            stored: null,
+            primaryIsGuess: false
+        );
+
+        var label = options.Single(o => o.Value == "3440x1440").Label;
+        Assert.DoesNotContain("assumed", label, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void AStoredResolutionNoDisplayOffersIsStillSelectable()
     {
         // Unplugging the monitor a resolution was chosen for must not silently rewrite the

@@ -171,7 +171,14 @@ public partial class InstallViewModel : ViewModelBase
         // Offered before the run so a first install lands on the right resolution, but the
         // write happens after the engine finishes — the profiles do not exist until then.
         var storedResolution = settings.Settings.PreferredResolution;
-        foreach (var option in ResolutionOption.Build(displayCatalog.Choices(), storedResolution))
+        var resolutionChoices = displayCatalog.Choices();
+        foreach (
+            var option in ResolutionOption.Build(
+                resolutionChoices,
+                storedResolution,
+                displayCatalog.PrimaryIsGuess
+            )
+        )
         {
             Resolutions.Add(option);
         }

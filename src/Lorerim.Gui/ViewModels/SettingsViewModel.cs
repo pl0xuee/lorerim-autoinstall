@@ -28,17 +28,21 @@ public sealed record ResolutionOption(string? Value, string Label)
     /// </summary>
     public static List<ResolutionOption> Build(
         IReadOnlyList<ResolutionChoice> choices,
-        string? stored
+        string? stored,
+        bool primaryIsGuess = false
     )
     {
         List<ResolutionOption> options = [new(null, "Leave as the modlist ships")];
+        // Without xrandr the largest output is assumed to be primary, and saying "primary"
+        // outright would state something the app has not actually established.
+        var primaryLabel = primaryIsGuess ? "primary (assumed), native" : "primary, native";
         foreach (var choice in choices)
         {
             var displays = string.Join(", ", choice.Displays);
             options.Add(
                 new ResolutionOption(
                     choice.Mode.ToString(),
-                    $"{choice.Mode}  ({(choice.IsPrimaryNative ? $"{displays} — primary, native" : displays)})"
+                    $"{choice.Mode}  ({(choice.IsPrimaryNative ? $"{displays} — {primaryLabel}" : displays)})"
                 )
             );
         }
@@ -183,7 +187,7 @@ public partial class SettingsViewModel : ViewModelBase
         var choices = _displayCatalog.Choices();
 
         Resolutions.Clear();
-        foreach (var option in ResolutionOption.Build(choices, stored))
+        foreach (var option in ResolutionOption.Build(choices, stored, _displayCatalog.PrimaryIsGuess))
         {
             Resolutions.Add(option);
         }

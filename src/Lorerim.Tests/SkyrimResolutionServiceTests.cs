@@ -156,6 +156,28 @@ public class SkyrimResolutionServiceTests : IDisposable
     }
 
     [Fact]
+    public void ApplyingWithNoProfilesReportsThatNothingWasWritten()
+    {
+        // Otherwise the UI says "set to 3440x1440 in every profile" having written nothing,
+        // and the user goes looking for why the game ignored it.
+        Directory.CreateDirectory(Path.Join(_root, "profiles"));
+        WriteModOrganizerIni("Ultra");
+
+        Assert.False(SkyrimResolutionService.ApplyPreference(_root, "3440x1440"));
+    }
+
+    [Theory]
+    [InlineData("25640x1440")]
+    [InlineData("1x1")]
+    [InlineData("99999x99999")]
+    public void RejectsResolutionsOutsideAnyPlausibleRange(string stored)
+    {
+        // A hand-edited settings.json must not bake an unlaunchable resolution into every
+        // profile — "25640x1440" is precisely the typo the shipped LoreRim ini contains.
+        Assert.False(SkyrimResolutionService.TryParse(stored, out _));
+    }
+
+    [Fact]
     public void ApplyingAValidPreferenceWritesIt()
     {
         WriteInstall(activeProfile: "Ultra", profiles: ["Ultra"]);

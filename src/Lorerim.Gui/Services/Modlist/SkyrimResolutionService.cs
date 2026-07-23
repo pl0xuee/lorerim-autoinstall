@@ -20,6 +20,12 @@ public static partial class SkyrimResolutionService
     private const string PrefsName = "skyrimprefs.ini";
     private const string DisplaySection = "[Display]";
 
+    // Sanity bounds, not a mode whitelist: the picker only offers detected modes, but
+    // settings.json is hand-editable and a typo written into every profile can leave the game
+    // unlaunchable. The shipped LoreRim ini already carries a "25640x1440" of exactly this kind.
+    private const int MinDimension = 640;
+    private const int MaxDimension = 16384;
+
     /// <summary>The resolution the active profile is configured for, or null if unreadable.</summary>
     public static (int Width, int Height)? Read(string installDir)
     {
@@ -52,14 +58,17 @@ public static partial class SkyrimResolutionService
     /// profile in MO2 must not silently revert the choice — which presents to a user as the
     /// setting simply not having worked.
     /// </summary>
-    public static void Apply(string installDir, int width, int height)
+    /// <summary>Returns how many profiles were written.</summary>
+    public static int Apply(string installDir, int width, int height)
     {
         var failures = new List<string>();
+        var written = 0;
         foreach (var prefs in AllProfilePrefs(installDir))
         {
             try
             {
                 ApplyToFile(prefs, width, height);
+                written++;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -73,6 +82,7 @@ public static partial class SkyrimResolutionService
                     + string.Join("; ", failures)
             );
         }
+        return written;
     }
 
     /// <summary>
@@ -92,8 +102,10 @@ public static partial class SkyrimResolutionService
             !match.Success
             || !int.TryParse(match.Groups["w"].Value, out var w)
             || !int.TryParse(match.Groups["h"].Value, out var h)
-            || w <= 0
-            || h <= 0
+            || w < MinDimension
+            || h < MinDimension
+            || w > MaxDimension
+            || h > MaxDimension
         )
         {
             return false;
@@ -103,18 +115,13 @@ public static partial class SkyrimResolutionService
     }
 
     /// <summary>
-    /// Applies a stored preference, returning whether anything was written. No preference and
-    /// an unparseable one both leave the install exactly as the modlist shipped it.
+    /// Applies a stored preference, returning whether anything was written. No preference, an
+    /// unparseable one, and an install with no profiles all leave things exactly as they were
+    /// — and all report false, so a caller cannot announce a change that never happened.
     /// </summary>
-    public static bool ApplyPreference(string installDir, string? stored)
-    {
-        if (!TryParse(stored, out var resolution))
-        {
-            return false;
-        }
-        Apply(installDir, resolution.Width, resolution.Height);
-        return true;
-    }
+    public static bool ApplyPreference(string installDir, string? stored) =>
+        TryParse(stored, out var resolution)
+        && Apply(installDir, resolution.Width, resolution.Height) > 0;
 
     /// <summary>Profiles present in the install, whether or not they are active.</summary>
     public static IReadOnlyList<string> Profiles(string installDir)
