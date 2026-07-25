@@ -8,24 +8,6 @@
              x:Class="Lorerim.Gui.Views.InstallView"
              x:DataType="vm:InstallViewModel">
 
-    <UserControl.Styles>
-        <!-- Status glyph tones for the preflight list -->
-        <Style Selector="TextBlock.glyph">
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Width" Value="20"/>
-            <Setter Property="TextAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="TextBlock.glyph.ok">
-            <Setter Property="Foreground" Value="{StaticResource RuneOk}"/>
-        </Style>
-        <Style Selector="TextBlock.glyph.warn">
-            <Setter Property="Foreground" Value="{StaticResource RuneWarn}"/>
-        </Style>
-        <Style Selector="TextBlock.glyph.fail">
-            <Setter Property="Foreground" Value="{StaticResource RuneFail}"/>
-        </Style>
-    </UserControl.Styles>
-
     <ScrollViewer>
         <StackPanel Spacing="14" MaxWidth="900" HorizontalAlignment="Left">
 
@@ -130,12 +112,13 @@
                     </DockPanel>
                     <ItemsControl ItemsSource="{Binding Phases}">
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:PhaseRow">
+                            <DataTemplate x:DataType="vm:StepRow">
                                 <Grid ColumnDefinitions="26,280,*" Margin="0,3"
                                       Opacity="{Binding Emphasis}">
-                                    <TextBlock Grid.Column="0" Text="{Binding Glyph}"
-                                               Width="20" TextAlignment="Center"
-                                               Foreground="{StaticResource RuneBrass}"/>
+                                    <TextBlock Grid.Column="0" Text="{Binding Glyph}" Classes="glyph"
+                                               Classes.running="{Binding IsRunning}"
+                                               Classes.ok="{Binding IsOk}"
+                                               Classes.fail="{Binding IsFail}"/>
                                     <TextBlock Grid.Column="1" Text="{Binding Name}"/>
                                     <TextBlock Grid.Column="2" Text="{Binding Detail}" Classes="muted"
                                                TextWrapping="Wrap"/>

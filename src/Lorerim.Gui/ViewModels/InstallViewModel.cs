@@ -29,22 +29,39 @@ public partial class FileProgressRow : ObservableObject
     public partial string Speed { get; set; } = "";
 }
 
-public partial class PhaseRow(string name) : ObservableObject
+/// <summary>
+/// One step in a reported pipeline — the install phases here, the Steam setup steps on the
+/// Steam page. Shared so both pages speak the same glyph vocabulary (see App.axaml) rather
+/// than each inventing its own.
+/// </summary>
+public partial class StepRow(string name) : ObservableObject
 {
+    public const string PendingGlyph = "○";
+    public const string RunningGlyph = "◐";
+    public const string OkGlyph = "✓";
+    public const string FailGlyph = "✕";
+
     public string Name { get; } = name;
 
-    /// <summary>Glyph column: pending until the orchestrator reports on this phase.</summary>
+    /// <summary>Glyph column: pending until something reports on this step.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRunning))]
+    [NotifyPropertyChangedFor(nameof(IsOk))]
+    [NotifyPropertyChangedFor(nameof(IsFail))]
     public partial string Glyph { get; set; } = PendingGlyph;
 
     [ObservableProperty]
     public partial string Detail { get; set; } = "";
 
-    /// <summary>Drives emphasis: pending phases sit back, the live one comes forward.</summary>
+    /// <summary>Drives emphasis: pending steps sit back, the live one comes forward.</summary>
     [ObservableProperty]
     public partial double Emphasis { get; set; } = 0.45;
 
-    public bool IsRunning => Glyph == "◐";
+    public bool IsRunning => Glyph == RunningGlyph;
+
+    public bool IsOk => Glyph == OkGlyph;
+
+    public bool IsFail => Glyph == FailGlyph;
 
     public void Reset()
     {
@@ -57,14 +74,12 @@ public partial class PhaseRow(string name) : ObservableObject
     {
         (Glyph, Emphasis) = state switch
         {
-            Services.Steam.StepState.Running => ("◐", 1.0),
-            Services.Steam.StepState.Ok => ("✓", 0.8),
-            _ => ("✕", 1.0),
+            Services.Steam.StepState.Running => (RunningGlyph, 1.0),
+            Services.Steam.StepState.Ok => (OkGlyph, 0.8),
+            _ => (FailGlyph, 1.0),
         };
         Detail = detail;
     }
-
-    private const string PendingGlyph = "○";
 }
 
 /// <summary>A preflight result dressed for display (glyph + colour key).</summary>
@@ -87,7 +102,7 @@ public partial class InstallViewModel : ViewModelBase
 {
     public ObservableCollection<FileProgressRow> FileRows { get; } = [];
     public ObservableCollection<CheckRow> Checks { get; } = [];
-    public ObservableCollection<PhaseRow> Phases { get; } = [];
+    public ObservableCollection<StepRow> Phases { get; } = [];
     public ObservableCollection<ManualDownload> ManualDownloads { get; } = [];
 
     [ObservableProperty]
@@ -106,10 +121,14 @@ public partial class InstallViewModel : ViewModelBase
     /// Built once at startup it would never notice a monitor being plugged in, and this page
     /// has no rescan button of its own — re-checking is where a user already expects a
     /// refresh of what the app can see.
+    ///
+    /// The choice is taken from settings, never from this page's own stale selection: both
+    /// pages are singletons built at startup, so re-seeding from the local field would let a
+    /// re-check here quietly write back a resolution the Settings page had already replaced.
     /// </summary>
     private void RefreshResolutionOptions()
     {
-        var current = SelectedResolution?.Value ?? _settings.Settings.PreferredResolution;
+        var current = _settings.Settings.PreferredResolution;
         Resolutions.Clear();
         foreach (
             var option in ResolutionOption.Build(
@@ -134,11 +153,19 @@ public partial class InstallViewModel : ViewModelBase
 
     partial void OnDownloadDirChanged(string value) => _settings.Settings.DownloadDir = value;
 
-    /// <summary>Re-sync from settings when the page is shown (the other page may have edited them).</summary>
-    public void ReloadDirs()
+    /// <summary>
+    /// Re-sync from settings when the page is shown. Settings edits the same paths and the
+    /// same resolution, and both pages live for the whole session — without this the two
+    /// disagree on screen and whichever acts last wins.
+    /// </summary>
+    public void ReloadFromSettings()
     {
         InstallDir = _settings.Settings.InstallDir;
         DownloadDir = _settings.Settings.DownloadDir;
+        // Rebuilt rather than just re-selected: a stored resolution no connected display
+        // offers only appears in the list if Build() puts it there, and rebuilding also
+        // notices a monitor plugged in since the page was last shown.
+        RefreshResolutionOptions();
     }
 
     [ObservableProperty]
@@ -194,9 +221,11 @@ public partial class InstallViewModel : ViewModelBase
         _displayCatalog = displayCatalog;
         RefreshResolutionOptions();
 
-        foreach (var phase in PhaseNames.Keys)
+        // Indexed by enum ordinal below, so build it from the enum rather than from a
+        // dictionary whose enumeration order only happens to line up.
+        foreach (var phase in Enum.GetValues<InstallPhase>())
         {
-            Phases.Add(new PhaseRow(PhaseNames[phase]));
+            Phases.Add(new StepRow(PhaseNames[phase]));
         }
 
         // Batch (not sample) so no per-file terminal state is lost, then update rows on the UI thread.
@@ -250,6 +279,10 @@ public partial class InstallViewModel : ViewModelBase
                 IsBusy = false;
                 // The orchestrator may have signed the user in mid-run.
                 RefreshAuthStatus();
+                // Nothing is left to answer the prompt: the engine that asked for these is
+                // gone, so a card still offering "continue" would only mislead.
+                ShowManualDownloads = false;
+                ManualDownloads.Clear();
                 // Rows still marked running were interrupted: failed runs mark them failed,
                 // a cancelled run returns them to pending rather than spinning forever.
                 foreach (var row in Phases.Where(r => r.IsRunning))
@@ -292,6 +325,12 @@ public partial class InstallViewModel : ViewModelBase
         {
             FileRows.Clear();
             ShowFirstLaunchGuide = false;
+            // Left over from the previous run these read as this run's state: a stale
+            // "4402/4402" beside INSTALL STEPS, and a manual-download prompt for files the
+            // engine has not asked for yet.
+            OverallCounter = "";
+            ShowManualDownloads = false;
+            ManualDownloads.Clear();
             foreach (var p in Phases)
             {
                 p.Reset();

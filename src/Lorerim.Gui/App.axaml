@@ -114,6 +114,27 @@
             <Setter Property="Foreground" Value="{StaticResource RuneMuted}"/>
         </Style>
 
+        <!-- Status glyphs. One vocabulary across every page that reports step or check state:
+             ○ pending · ◐ running · ✓ ok · ! warning · ✕ failed. -->
+        <Style Selector="TextBlock.glyph">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{StaticResource RuneMuted}"/>
+        </Style>
+        <Style Selector="TextBlock.glyph.running">
+            <Setter Property="Foreground" Value="{StaticResource RuneBrass}"/>
+        </Style>
+        <Style Selector="TextBlock.glyph.ok">
+            <Setter Property="Foreground" Value="{StaticResource RuneOk}"/>
+        </Style>
+        <Style Selector="TextBlock.glyph.warn">
+            <Setter Property="Foreground" Value="{StaticResource RuneWarn}"/>
+        </Style>
+        <Style Selector="TextBlock.glyph.fail">
+            <Setter Property="Foreground" Value="{StaticResource RuneFail}"/>
+        </Style>
+
         <!-- Rail navigation -->
         <Style Selector="ListBox.nav">
             <Setter Property="Background" Value="Transparent"/>

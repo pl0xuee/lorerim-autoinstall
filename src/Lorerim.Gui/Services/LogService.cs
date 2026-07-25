@@ -39,9 +39,19 @@ public class LogService
         }
     }
 
+    /// <summary>
+    /// The file every line is teed to, or null when this sink is memory-only. Surfaced so the
+    /// UI can point a user at the full record: the in-app pane keeps only the last 2000 lines,
+    /// and a failed install is diagnosed from the file.
+    /// </summary>
+    public string? LogFilePath => _logFile;
+
     public void Append(string line)
     {
-        var stamped = $"[{DateTime.Now:HH:mm:ss}] {line}";
+        // One timestamp for both sinks: reading the clock twice can straddle midnight and
+        // stamp the file line with a different day than the one shown in the pane.
+        var now = DateTime.Now;
+        var stamped = $"[{now:HH:mm:ss}] {line}";
         LineAdded?.Invoke(stamped);
         if (_logFile is null)
         {
@@ -51,7 +61,7 @@ public class LogService
         {
             try
             {
-                File.AppendAllText(_logFile, $"[{DateTime.Now:yyyy-MM-dd}]{stamped}\n");
+                File.AppendAllText(_logFile, $"[{now:yyyy-MM-dd}]{stamped}\n");
             }
             catch
             {

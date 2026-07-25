@@ -19,6 +19,19 @@ public class SecurityGuardTests
         Assert.False(SafeUrl.TryOpenInBrowser(url));
     }
 
+    [Theory]
+    [InlineData("relative/path.log")]
+    [InlineData("~/logs/app.log")]
+    [InlineData("   ")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void OnlyRootedLocalPathsAreOpened(string? path)
+    {
+        // This bypasses the http(s) allow-list, so it is for paths the app builds itself.
+        // Anything that is not an absolute path did not come from there.
+        Assert.False(SafeUrl.TryOpenLocalPath(path));
+    }
+
     [Fact]
     public void DesktopExecQuotingEscapesSpecFields()
     {

@@ -209,6 +209,13 @@ public class InstallOrchestrator(
             // Steam setup normally ends with the compatibility fixes; without it they would
             // be skipped and the modlist would crash on launch.
             await modFixups.ApplyAsync(Path.GetDirectoryName(mo2Exe)!, ct);
+            // Say so rather than leaving the row pending for good: a step that never reports
+            // reads as one that hung, not one the user switched off.
+            Report(
+                InstallPhase.SteamSetup,
+                StepState.Ok,
+                "skipped — switched off in Settings; compatibility fixes applied anyway"
+            );
         }
 
         Report(InstallPhase.Done, StepState.Ok);

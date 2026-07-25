@@ -31,11 +31,26 @@
             </DockPanel>
         </Border>
 
-        <!-- Log pane -->
-        <Border DockPanel.Dock="Bottom" Height="190"
+        <!-- Log pane. The header names the file on disk and opens it: this pane keeps only the
+             last 2000 lines, and a failed multi-hour install is diagnosed from the whole log. -->
+        <Border DockPanel.Dock="Bottom" Height="230"
                 IsVisible="{Binding LogPaneOpen}"
                 BorderThickness="0,1,0,0" BorderBrush="{StaticResource RuneHairline}">
-            <ListBox x:Name="LogList" Classes="log" ItemsSource="{Binding LogLines}"/>
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Padding="10,5"
+                        Background="{StaticResource RunePanel}"
+                        BorderThickness="0,0,0,1" BorderBrush="{StaticResource RuneHairline}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Open log file" Padding="10,3"
+                                Margin="8,0,0,0" Command="{Binding OpenLogFileCommand}"/>
+                        <SelectableTextBlock Text="{Binding LogFilePath}" Classes="mono"
+                                             Foreground="{StaticResource RuneMuted}"
+                                             VerticalAlignment="Center"
+                                             TextTrimming="CharacterEllipsis"/>
+                    </DockPanel>
+                </Border>
+                <ListBox x:Name="LogList" Classes="log" ItemsSource="{Binding LogLines}"/>
+            </DockPanel>
         </Border>
 
         <!-- Rail -->

@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.1.6
+
+Bug-fix and UI-consistency release after a full review of the app.
+
+- The Steam page could pick a Proton build whose Steam Linux Runtime is not installed. That build cannot run at all, so setup died at the protontricks step — the exact failure v0.1.3 removed from the install path, still reachable from this page. It now selects the same way the one-click install does: unusable builds are filtered out first, the Proton pinned in Settings is honoured, and the substitution and its cause are reported before anything runs
+- The Steam page also ignored the Proton pin from Settings entirely, and resolved a `~/`-prefixed install folder against the working directory instead of the home directory
+- A resolution chosen in Settings was silently reverted by the install page. Both pages live for the whole session and the install page re-seeded its picker from its own stale copy, so pressing **Re-check** wrote the old value back over the saved one. Both now read the setting itself, and each re-syncs when shown, so they can no longer disagree on screen
+- The status-bar progress bar froze again once the engine phase ended. Only the engine reports a fraction; the bar kept the last one it published and sat motionless through Steam setup and the 45-minute prerequisites step. It returns to animating whenever a non-engine phase starts
+- The manual-download prompt never went away. It was cleared only by its own button, so a cancelled or failed run left a card offering to continue an engine that had already exited, and it was still there when the next install began. It is now cleared when a run starts and when one ends
+- The install-steps counter kept the previous run's file count, presenting it as this run's progress
+- Switching Steam setup off in Settings left its step pending forever, which reads as a hung step rather than one that was skipped. It now says so, and confirms the compatibility fixes ran anyway
+- The Steam page opened with an empty Proton dropdown and a greyed-out button that explained neither; it now checks requirements when first shown, like the install page. A second click during the check no longer starts a competing operation that reports itself as a failure of the run already going
+- **Run Steam setup** is disabled until the "Steam will be closed" box is ticked, instead of looking ready and then refusing
+- Added a way to reach the log file: the log pane now shows its path and opens it. The pane keeps only the last 2000 lines and an install runs for hours, so the record needed to report a failure was routinely off the top of it
+- The Steam page was the odd one out visually — no cards, no scrolling, and its own glyph set (⏳✅❌) against the geometric one everywhere else. It now uses the same layout, the same colour-coded checklist, and one shared glyph vocabulary that also gives the install phases their tones: a failed step is no longer drawn in the same brass as a successful one
+- Applying a resolution from Settings is refused while an install is running, rather than editing profiles the engine is writing
+
 ## v0.1.5
 
 Keeps an update from disturbing the Steam entry you already set up, and gives the status bar a progress bar that actually moves.

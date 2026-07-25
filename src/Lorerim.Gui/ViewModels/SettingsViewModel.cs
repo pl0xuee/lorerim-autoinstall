@@ -78,6 +78,13 @@ public partial class SettingsViewModel : ViewModelBase
     {
         InstallDir = _settings.Settings.InstallDir;
         DownloadDir = _settings.Settings.DownloadDir;
+        // The install page offers the same picker and writes straight through to settings.
+        // An unsaved choice made here outranks that; anything else would discard the user's
+        // own edit the moment they glanced at another page.
+        if (!_resolutionTouched)
+        {
+            RefreshResolutions();
+        }
     }
 
     [ObservableProperty]
@@ -217,6 +224,14 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private async Task ApplyResolutionAsync()
     {
+        // The engine rewrites the profile tree as it installs; editing skyrimprefs.ini
+        // underneath it would either be overwritten or corrupt what the engine is writing.
+        if (_runner.IsBusy)
+        {
+            ResolutionStatus = "Finish or cancel the running operation before applying a resolution.";
+            return;
+        }
+
         // This page is built once at startup, so a resolution chosen on the install page since
         // then is not reflected here. Re-sync unless the user has made a choice of their own,
         // which must not be discarded.
@@ -297,6 +312,11 @@ public partial class SettingsViewModel : ViewModelBase
             s.PreferredProtonInternalName = SelectedTool?.InternalName;
         }
         await _settings.SaveAsync();
+        // Persisted, so settings and this page now agree and the guards have nothing left to
+        // protect. Leaving them set would freeze this page's copy for the rest of the session,
+        // hiding a later change made on the install page.
+        _resolutionTouched = false;
+        _protonTouched = false;
         StatusText = $"Saved to {AppSettings.SettingsPath}";
         _log.Append("Settings saved");
     }

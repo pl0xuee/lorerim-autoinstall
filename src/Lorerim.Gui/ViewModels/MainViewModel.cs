@@ -37,16 +37,22 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool LogPaneOpen { get; set; }
 
+    /// <summary>Where the full log is kept — the pane only holds the last 2000 lines.</summary>
+    public string LogFilePath { get; }
+
     public MainViewModel(
         InstallViewModel install,
         SettingsViewModel settings,
         SteamSetupViewModel steamSetup,
         OperationRunner runner,
         LogService log,
-        EngineProgress engineProgress
+        EngineProgress engineProgress,
+        InstallOrchestrator orchestrator
     )
     {
         _runner = runner;
+        _log = log;
+        LogFilePath = log.LogFilePath ?? "(log file unavailable)";
         NavItems =
         [
             new NavItem("INSTALL", "⇣", install),
@@ -104,6 +110,19 @@ public partial class MainViewModel : ViewModelBase
                 }
             });
 
+        // Only the engine phase can report a fraction. Every other phase — Steam setup,
+        // prefix creation, the 45-minute protontricks step — reports nothing per file, so
+        // hand the bar back to its animation on leaving the engine instead of leaving it
+        // parked on the last fraction the engine happened to publish.
+        orchestrator.PhaseChanged += change =>
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (change.Phase != InstallPhase.EngineInstall)
+                {
+                    ProgressIsIndeterminate = true;
+                }
+            });
+
         // The engine emits progress lines at high frequency; sample before touching the UI thread.
         Observable
             .FromEvent<EngineFileProgress>(
@@ -136,5 +155,20 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     private void ToggleLogPane() => LogPaneOpen = !LogPaneOpen;
 
+    /// <summary>
+    /// Opens the log file in the desktop's default handler. The pane is capped at 2000 lines
+    /// and a LoreRim install runs for hours, so the record a user needs to report a failure
+    /// is routinely off the top of it.
+    /// </summary>
+    [RelayCommand]
+    private void OpenLogFile()
+    {
+        if (!Services.SafeUrl.TryOpenLocalPath(_log.LogFilePath))
+        {
+            _log.Append($"Could not open the log file at {LogFilePath}");
+        }
+    }
+
     private readonly OperationRunner _runner;
+    private readonly LogService _log;
 }
