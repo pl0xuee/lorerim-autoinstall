@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.1.7
+
+Brings the app up to date with Jackify 0.8.1.3 and its engine, turns the engine's own failure reports into messages you can act on, and fixes a round of layout and state bugs found going through every page.
+
+### Jackify and the install engine
+
+- The bundled jackify-engine moves from 0.5.7 to 0.5.10, pinned by checksum as before. 0.5.8–0.5.10 fix path-casing inside BSA archives, retry downloads that were left missing, correct transfer-speed reporting on machines with more than one network interface, and rebuild a corrupt extraction prefix instead of failing with a misleading "corrupted, incomplete, or incompatible" error. The command line this app drives is unchanged
+- Failures from the engine are now explained instead of reduced to "exited with code 6". The engine reports errors as structured lines on stderr and exits with a code naming the class of failure; both are read now. A full disk, an expired Nexus sign-in, a network drop and stalled downloads each say what happened and that re-running resumes where it stopped. A mismatched game file — what a Skyrim update looks like to the engine — names the file and the game version the modlist expects, and separates that from a real download failure
+- The engine's stderr was held back until its stdout closed, so a warning from the first hour of an install reached the log only when the whole run ended. It is read as it arrives now
+- `d3dx9_42` is installed into the prefix alongside the other components, matching what Jackify 0.8.1.3 now does for every Skyrim modlist
+- Checked and left alone: Jackify's new mod-specific fixes (Dialogue History, DovahKit) do not apply because LoreRim ships neither, and its Steam-shortcut fixes for lowercase keys and for a missing "most recent" user were already handled here
+
+### Fixes
+
+- The status bar grew to three lines when a run failed with a bulleted message, such as the preflight list or the missing Creation Club files. It shows one line now, says where the rest is, and the log pane opens with the whole of it. The preflight failure leads with how many blocking issues there were
+- A failed or timed-out Nexus sign-in showed "Not signed in", exactly as if nothing had been attempted: the failure message was replaced a line later. It stays on screen now
+- The disk-type check reported "unknown device — skipped" on every encrypted (LUKS), LVM and device-mapper install, which includes the default layout on several distributions, so a spinning disk was never warned about. It follows the mapping down to the physical disk now
+- Rebuilding the resolution list made the dropdown report an empty selection, which Settings read as the user having chosen "leave as the modlist ships" and the install page briefly saved into the shared settings. That froze Settings' copy of the choice for the rest of the session. Both pages ignore their own refreshes now
+- Two settings saves landing together (Browse, then Install) shared one staging file opened exclusively, so the second failed. Saves are serialized
+- A hung `xrandr` could freeze the window, since it was read to the end before its timeout applied and it runs when a page is shown. The wait is bounded and the process is killed on timeout
+- The log pane queued a scroll for every engine log line even while closed. It only follows the tail when it is on screen
+
+### Layout and appearance
+
+- The hint beside the install and Steam buttons ran off the card at narrower widths instead of wrapping, and the failure summary beside it was cut off. Both wrap
+- The rail subtitle lost its last word, the three nav icons were font symbols of different sizes and colours, and the "running" step marker was a half-filled circle missing from the bundled font. Icons are drawn now, and a running step shows a pulsing brass dot
+- Long file names in the download grid were clipped without an ellipsis; they truncate with the full name on hover, and the Phase column no longer cuts off "Downloading"
+- Manual downloads show the file name over its link instead of squeezing both onto one line
+- Settings was centred on wide windows while every other page is left-aligned. It is regrouped (compatibility settings apart from advanced ones), labels read as labels, fields stretch with the window, the update buttons wrap, and the "Saved" confirmation sits beside the Save button instead of at the top of a long page
+- The engine check reads "jackify-engine 0.5.10" rather than a 40-character build hash
+- The window has a minimum size, so it can no longer be dragged down to something the layout cannot hold
+
 ## v0.1.6
 
 Bug-fix and UI-consistency release after a full review of the app.
