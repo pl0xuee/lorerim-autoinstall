@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.1.7
+## v0.1.8
 
 Brings the app up to date with Jackify 0.8.1.3 and its engine, turns the engine's own failure reports into messages you can act on, and fixes a round of layout and state bugs found going through every page.
 
