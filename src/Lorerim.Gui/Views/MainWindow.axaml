@@ -7,7 +7,7 @@
         x:Class="Lorerim.Gui.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/app-icon.ico"
-        Width="1160" Height="760"
+        Width="1160" Height="760" MinWidth="780" MinHeight="520"
         Title="LoreRim Autoinstall">
 
     <DockPanel>
@@ -27,7 +27,8 @@
                              IsVisible="{Binding IsBusy}" Margin="12,0,0,0"/>
                 <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center"
                            Classes="mono" Foreground="{StaticResource RuneMuted}"
-                           TextTrimming="CharacterEllipsis"/>
+                           MaxLines="1" TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding StatusText}"/>
             </DockPanel>
         </Border>
 
@@ -62,7 +63,7 @@
                                Foreground="{StaticResource RuneMuted}"/>
                     <TextBlock Text="LORERIM" FontSize="26" FontWeight="Bold"
                                LetterSpacing="4" Foreground="{StaticResource RuneBrass}"/>
-                    <TextBlock Text="WABBAJACK DEPLOYMENT KIT" FontSize="9" LetterSpacing="3"
+                    <TextBlock Text="WABBAJACK INSTALLER" FontSize="9" LetterSpacing="3"
                                Foreground="{StaticResource RuneMuted}" Margin="0,6,0,0"/>
                     <Rectangle Height="1" Fill="{StaticResource RuneHairline}" Margin="0,14,0,0"/>
                 </StackPanel>
@@ -72,8 +73,8 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:NavItem">
                             <StackPanel Orientation="Horizontal" Spacing="12">
-                                <TextBlock Classes="nav-icon" Text="{Binding Icon}" Width="18"
-                                           TextAlignment="Center" VerticalAlignment="Center"/>
+                                <PathIcon Classes="nav-icon" Data="{Binding Icon}"
+                                          VerticalAlignment="Center"/>
                                 <TextBlock Classes="nav-label" Text="{Binding Name}"
                                            VerticalAlignment="Center"/>
                             </StackPanel>

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Lorerim.Gui.Models;
@@ -33,21 +34,34 @@ public class AppSettings
 
     public async Task SaveAsync()
     {
-        if (!Directory.Exists(AppDataPath))
+        // Saves are staged through one shared temp file opened exclusively, so two overlapping
+        // saves (Browse then Install, say) would make the second fail with a sharing violation
+        // instead of simply writing the newer state. Serialized, each write sees the latest.
+        await SaveGate.WaitAsync();
+        try
         {
-            // 0700: this directory holds the Nexus API key and OAuth token.
-            Directory.CreateDirectory(
-                AppDataPath,
-                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+            if (!Directory.Exists(AppDataPath))
+            {
+                // 0700: this directory holds the Nexus API key and OAuth token.
+                Directory.CreateDirectory(
+                    AppDataPath,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+                );
+            }
+            // settings.json can carry the Nexus API key — keep it owner-only like the token file.
+            await Services.AtomicFile.WriteAllTextAsync(
+                SettingsPath,
+                JsonSerializer.Serialize(this, AppSettingsCtx.Default.AppSettings),
+                unixCreateMode: UnixFileMode.UserRead | UnixFileMode.UserWrite
             );
         }
-        // settings.json can carry the Nexus API key — keep it owner-only like the token file.
-        await Services.AtomicFile.WriteAllTextAsync(
-            SettingsPath,
-            JsonSerializer.Serialize(this, AppSettingsCtx.Default.AppSettings),
-            unixCreateMode: UnixFileMode.UserRead | UnixFileMode.UserWrite
-        );
+        finally
+        {
+            SaveGate.Release();
+        }
     }
+
+    private static readonly SemaphoreSlim SaveGate = new(1, 1);
 
     public static AppSettings Load()
     {

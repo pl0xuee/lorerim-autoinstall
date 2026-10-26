@@ -54,8 +54,10 @@
 
                     <Rectangle Height="1" Fill="{StaticResource RuneHairline}"/>
 
-                    <StackPanel Orientation="Horizontal" Spacing="14">
-                        <Button Classes="accent" MinWidth="240" MinHeight="48"
+                    <!-- A grid rather than a horizontal stack: a stack measures its children with
+                         unlimited width, so the status text never wrapped and ran off the card. -->
+                    <Grid ColumnDefinitions="Auto,Auto,*">
+                        <Button Grid.Column="0" Classes="accent" MinWidth="240" MinHeight="48"
                                 HorizontalContentAlignment="Center"
                                 VerticalContentAlignment="Center"
                                 IsEnabled="{Binding CanInstall}"
@@ -63,16 +65,18 @@
                             <TextBlock Text="INSTALL LORERIM" FontSize="14" FontWeight="SemiBold"
                                        LetterSpacing="2"/>
                         </Button>
-                        <Button MinHeight="48" Padding="18,10" Content="Cancel"
+                        <Button Grid.Column="1" MinHeight="48" Padding="18,10" Content="Cancel"
+                                Margin="14,0,0,0"
                                 VerticalContentAlignment="Center"
                                 IsVisible="{Binding IsBusy}"
                                 Command="{Binding CancelCommand}"/>
-                        <StackPanel VerticalAlignment="Center" Spacing="2">
+                        <StackPanel Grid.Column="2" Margin="14,0,0,0" VerticalAlignment="Center"
+                                    Spacing="2">
                             <TextBlock Text="{Binding CheckResultText}" TextWrapping="Wrap"/>
                             <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
                                        Text="Already installed? This same button updates or repairs it in place."/>
                         </StackPanel>
-                    </StackPanel>
+                    </Grid>
                 </StackPanel>
             </Border>
 
@@ -139,15 +143,15 @@
                     <ItemsControl ItemsSource="{Binding ManualDownloads}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="eng:ManualDownload">
-                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,3">
-                                    <TextBlock Grid.Column="0" Text="{Binding Name}"
-                                               FontWeight="SemiBold" Margin="0,0,10,0"
-                                               VerticalAlignment="Center"/>
-                                    <SelectableTextBlock Grid.Column="1" Text="{Binding Url}"
-                                                         Classes="muted" VerticalAlignment="Center"
-                                                         TextWrapping="Wrap"/>
-                                    <Button Grid.Column="2" Content="Open" Padding="10,3"
-                                            Margin="8,0,0,0"
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,5">
+                                    <StackPanel Grid.Column="0" Spacing="1">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                   TextWrapping="Wrap"/>
+                                        <SelectableTextBlock Text="{Binding Url}" Classes="muted"
+                                                             FontSize="12" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Open" Padding="12,4"
+                                            Margin="12,0,0,0" VerticalAlignment="Center"
                                             IsVisible="{Binding Url, Converter={x:Static ObjectConverters.IsNotNull}}"
                                             Command="{Binding $parent[ItemsControl].((vm:InstallViewModel)DataContext).OpenUrlCommand}"
                                             CommandParameter="{Binding Url}"/>
@@ -168,9 +172,20 @@
                     <DataGrid ItemsSource="{Binding FileRows}" Height="260"
                               IsReadOnly="True" AutoGenerateColumns="False">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="File" Binding="{Binding Name}" Width="*"/>
-                            <DataGridTextColumn Header="Phase" Binding="{Binding Phase}" Width="130"/>
-                            <DataGridTemplateColumn Header="Progress" Width="160">
+                            <!-- Template column: the stock text column clips with no ellipsis, and
+                                 mod archive names are long enough that the tail is the useful part. -->
+                            <DataGridTemplateColumn Header="File" Width="*" MinWidth="160">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate x:DataType="vm:FileProgressRow">
+                                        <TextBlock Text="{Binding Name}" Margin="12,0"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding Name}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Phase" Binding="{Binding Phase}" Width="125"/>
+                            <DataGridTemplateColumn Header="Progress" Width="120">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate x:DataType="vm:FileProgressRow">
                                         <ProgressBar Minimum="0" Maximum="1" Value="{Binding Progress}"
@@ -178,7 +193,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Speed" Binding="{Binding Speed}" Width="110"/>
+                            <DataGridTextColumn Header="Speed" Binding="{Binding Speed}" Width="95"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </StackPanel>

@@ -36,8 +36,8 @@
 
                     <Rectangle Height="1" Fill="{StaticResource RuneHairline}"/>
 
-                    <StackPanel Orientation="Horizontal" Spacing="14">
-                        <Button Classes="accent" MinWidth="240" MinHeight="48"
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Button Grid.Column="0" Classes="accent" MinWidth="240" MinHeight="48"
                                 HorizontalContentAlignment="Center"
                                 VerticalContentAlignment="Center"
                                 IsEnabled="{Binding CanRunSetup}"
@@ -45,12 +45,13 @@
                             <TextBlock Text="RUN STEAM SETUP" FontSize="14" FontWeight="SemiBold"
                                        LetterSpacing="2"/>
                         </Button>
-                        <StackPanel VerticalAlignment="Center" Spacing="2">
+                        <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center"
+                                    Spacing="2">
                             <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap"/>
                             <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
                                        Text="The install page does this for you. Use this page to recreate or repair the Steam entry on its own."/>
                         </StackPanel>
-                    </StackPanel>
+                    </Grid>
                 </StackPanel>
             </Border>
 

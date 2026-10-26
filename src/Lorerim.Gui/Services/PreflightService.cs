@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Lorerim.Gui.Services.Engine;
@@ -413,13 +414,30 @@ public class PreflightService(
                 TimeSpan.FromSeconds(30)
             );
             return code == 0
-                ? new PreflightCheck("Install engine", CheckState.Ok, output.Trim())
+                ? new PreflightCheck("Install engine", CheckState.Ok, FormatEngineVersion(output))
                 : new PreflightCheck("Install engine", CheckState.Fail, $"--version exited with {code}");
         }
         catch (Exception e)
         {
             return new PreflightCheck("Install engine", CheckState.Fail, e.Message);
         }
+    }
+
+    /// <summary>
+    /// "0.5.10+e1981db487b0…" → "jackify-engine 0.5.10". The build hash after the "+" is
+    /// 40 characters of noise in a checklist row; the version is what anyone needs to read.
+    /// </summary>
+    internal static string FormatEngineVersion(string output)
+    {
+        var first = output
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault();
+        if (string.IsNullOrEmpty(first))
+        {
+            return "jackify-engine (version not reported)";
+        }
+        var plus = first.IndexOf('+');
+        return $"jackify-engine {(plus > 0 ? first[..plus] : first)}";
     }
 
     private static string FindExistingAncestor(string dir)
@@ -432,7 +450,7 @@ public class PreflightService(
         return current;
     }
 
-    /// <summary>Best-effort parent block device (e.g. nvme0n1) for the filesystem holding path.</summary>
+    /// <summary>Best-effort physical disk (e.g. nvme0n1) under the filesystem holding path.</summary>
     private static string? FindBlockDevice(string path)
     {
         // Resolve the mount's source device via /proc/mounts (longest matching mountpoint).
@@ -456,16 +474,59 @@ public class PreflightService(
         {
             return null;
         }
-        var name = Path.GetFileName(device);
-        // Strip partition suffix: sda1 → sda, nvme0n1p2 → nvme0n1.
-        foreach (var block in Directory.GetDirectories("/sys/block"))
+        // /dev/mapper/root and /dev/disk/by-* are symlinks to the kernel's own name (dm-0, sda1).
+        string kernelName;
+        try
         {
-            var blockName = Path.GetFileName(block);
-            if (name.StartsWith(blockName, StringComparison.Ordinal))
+            kernelName = Path.GetFileName(File.ResolveLinkTarget(device, true)?.FullName ?? device);
+        }
+        catch (IOException)
+        {
+            kernelName = Path.GetFileName(device);
+        }
+        return ResolveDisk("/sys/class/block", kernelName);
+    }
+
+    /// <summary>
+    /// Walks from a block device name down to the physical disk that holds the data, which is
+    /// the one whose queue/rotational says whether it spins.
+    ///
+    /// A mount source is rarely a disk: encrypted and LVM roots are device-mapper nodes
+    /// (dm-0), and a plain filesystem sits on a partition (nvme0n1p2). Matching the name
+    /// against /sys/block entries only finds the second, so every LUKS install — the default
+    /// on several distributions — was reported as "unknown device" and never checked.
+    /// </summary>
+    internal static string? ResolveDisk(string sysClassBlock, string name, int depth = 0)
+    {
+        var node = Path.Join(sysClassBlock, name);
+        if (depth > 8 || !Directory.Exists(node))
+        {
+            return null;
+        }
+
+        // Stacked devices (dm, md, bcache) list what they are built on under slaves/.
+        var slaves = Path.Join(node, "slaves");
+        if (Directory.Exists(slaves))
+        {
+            var below = Directory
+                .GetDirectories(slaves)
+                .Select(Path.GetFileName)
+                .OfType<string>()
+                .Order(StringComparer.Ordinal)
+                .FirstOrDefault();
+            if (below is not null)
             {
-                return blockName;
+                return ResolveDisk(sysClassBlock, below, depth + 1);
             }
         }
-        return null;
+
+        // A partition's sysfs node sits inside its disk's, which is where queue/ lives.
+        if (File.Exists(Path.Join(node, "partition")))
+        {
+            var real = new DirectoryInfo(node).ResolveLinkTarget(true) as DirectoryInfo
+                ?? new DirectoryInfo(node);
+            return real.Parent?.Name;
+        }
+        return name;
     }
 }

@@ -203,14 +203,17 @@ public partial class SettingsViewModel : ViewModelBase
         var stored = _settings.Settings.PreferredResolution;
         var choices = _displayCatalog.Choices();
 
-        Resolutions.Clear();
-        foreach (var option in ResolutionOption.Build(choices, stored, _displayCatalog.PrimaryIsGuess))
-        {
-            Resolutions.Add(option);
-        }
+        // Clearing the list is itself a selection change: the bound ComboBox drops its selection
+        // and writes null back. Left unsuppressed that reads as the user choosing "leave as the
+        // modlist ships" and freezes this page's copy for the rest of the session.
         _suppressResolutionDirty = true;
         try
         {
+            Resolutions.Clear();
+            foreach (var option in ResolutionOption.Build(choices, stored, _displayCatalog.PrimaryIsGuess))
+            {
+                Resolutions.Add(option);
+            }
             SelectedResolution = ResolutionOption.Select(Resolutions, stored);
         }
         finally

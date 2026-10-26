@@ -37,7 +37,7 @@ public partial class FileProgressRow : ObservableObject
 public partial class StepRow(string name) : ObservableObject
 {
     public const string PendingGlyph = "○";
-    public const string RunningGlyph = "◐";
+    public const string RunningGlyph = "●";
     public const string OkGlyph = "✓";
     public const string FailGlyph = "✕";
 
@@ -129,25 +129,40 @@ public partial class InstallViewModel : ViewModelBase
     private void RefreshResolutionOptions()
     {
         var current = _settings.Settings.PreferredResolution;
-        Resolutions.Clear();
-        foreach (
-            var option in ResolutionOption.Build(
-                _displayCatalog.Choices(),
-                current,
-                _displayCatalog.PrimaryIsGuess
-            )
-        )
+        // Clearing the list makes the bound ComboBox write a null selection back, which would
+        // otherwise be saved into the shared settings for the moment it takes to refill it.
+        _refreshingResolutions = true;
+        try
         {
-            Resolutions.Add(option);
+            Resolutions.Clear();
+            foreach (
+                var option in ResolutionOption.Build(
+                    _displayCatalog.Choices(),
+                    current,
+                    _displayCatalog.PrimaryIsGuess
+                )
+            )
+            {
+                Resolutions.Add(option);
+            }
+            SelectedResolution = ResolutionOption.Select(Resolutions, current);
         }
-        SelectedResolution = ResolutionOption.Select(Resolutions, current);
+        finally
+        {
+            _refreshingResolutions = false;
+        }
     }
 
     [ObservableProperty]
     public partial ResolutionOption? SelectedResolution { get; set; }
 
-    partial void OnSelectedResolutionChanged(ResolutionOption? value) =>
-        _settings.Settings.PreferredResolution = value?.Value;
+    partial void OnSelectedResolutionChanged(ResolutionOption? value)
+    {
+        if (!_refreshingResolutions)
+        {
+            _settings.Settings.PreferredResolution = value?.Value;
+        }
+    }
 
     partial void OnInstallDirChanged(string value) => _settings.Settings.InstallDir = value;
 
@@ -445,9 +460,15 @@ public partial class InstallViewModel : ViewModelBase
             var token = await _oauth.AuthorizeAsync(CancellationToken.None);
             if (token is null)
             {
-                AuthStatus = "Sign-in failed — see log";
+                // Not followed by RefreshAuthStatus(): that would immediately replace this
+                // with "Not signed in", so a failed or timed-out sign-in looked like nothing
+                // had happened. The next refresh (page shown, run finished) restores it.
+                AuthStatus = "Sign-in failed or timed out — see the log";
             }
-            RefreshAuthStatus();
+            else
+            {
+                RefreshAuthStatus();
+            }
         }
         finally
         {
@@ -541,6 +562,7 @@ public partial class InstallViewModel : ViewModelBase
     private readonly JackifyEngineRunner _engineRunner;
     private readonly Dictionary<string, FileProgressRow> _rowLookup = [];
     private bool _signInBusy;
+    private bool _refreshingResolutions;
     private bool _checking;
     private bool _checkedOnce;
 }

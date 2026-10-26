@@ -9,7 +9,24 @@ using Lorerim.Gui.Services.Engine;
 
 namespace Lorerim.Gui.ViewModels;
 
+/// <param name="Icon">SVG-style path data for a 16x16 icon. Drawn rather than typed as a glyph:
+/// font fallback gave each symbol a different size, weight and even colour on the same rail.</param>
 public sealed record NavItem(string Name, string Icon, ViewModelBase Page);
+
+public static class NavIcons
+{
+    public const string Install =
+        "F1 M7.25 1.5h1.5v6.1l2.2-2.2 1.06 1.06L8 10.22 3.99 6.46l1.06-1.06 2.2 2.2z M2.5 12h11v1.5h-11z";
+
+    public const string Steam = "F1 M4 2.5v11l9-5.5z";
+
+    // Three sliders: a bar with a round knob on it, repeated. Knobs wind the same way as the
+    // bars so the non-zero fill unions them instead of cutting holes where they overlap.
+    public const string Settings =
+        "F1 M2 3.4h12v1.2H2z M10 2.1a1.9 1.9 0 1 1 0 3.8 1.9 1.9 0 1 1 0-3.8z "
+        + "M2 7.4h12v1.2H2z M5.5 6.1a1.9 1.9 0 1 1 0 3.8 1.9 1.9 0 1 1 0-3.8z "
+        + "M2 11.4h12v1.2H2z M11 10.1a1.9 1.9 0 1 1 0 3.8 1.9 1.9 0 1 1 0-3.8z";
+}
 
 public partial class MainViewModel : ViewModelBase
 {
@@ -55,9 +72,9 @@ public partial class MainViewModel : ViewModelBase
         LogFilePath = log.LogFilePath ?? "(log file unavailable)";
         NavItems =
         [
-            new NavItem("INSTALL", "⇣", install),
-            new NavItem("STEAM", "▶", steamSetup),
-            new NavItem("SETTINGS", "⚙︎", settings),
+            new NavItem("INSTALL", NavIcons.Install, install),
+            new NavItem("STEAM", NavIcons.Steam, steamSetup),
+            new NavItem("SETTINGS", NavIcons.Settings, settings),
         ];
         SelectedNavItem = NavItems[0];
 
@@ -75,9 +92,7 @@ public partial class MainViewModel : ViewModelBase
                 // dumps that belong in the pane, not squeezed into one status row.
                 if (IsBusy)
                 {
-                    var text = StripTimestamp(line);
-                    var newline = text.IndexOf('\n');
-                    StatusText = (newline >= 0 ? text[..newline] : text).Trim();
+                    StatusText = FirstLine(StripTimestamp(line));
                 }
             });
 
@@ -102,7 +117,10 @@ public partial class MainViewModel : ViewModelBase
                 {
                     OperationOutcome.Succeeded => $"{name}: done",
                     OperationOutcome.Cancelled => $"{name}: cancelled",
-                    _ => $"{name}: failed — {result.Error?.Message}",
+                    // First line only: failures such as a failed preflight or missing CC content
+                    // carry a bulleted list, and the one-row status bar would grow to hold it.
+                    // The whole message is in the log pane, which opens below.
+                    _ => $"{name}: failed — {FirstLine(result.Error?.Message)}",
                 };
                 if (result.Outcome == OperationOutcome.Failed)
                 {
@@ -147,6 +165,21 @@ public partial class MainViewModel : ViewModelBase
                     }
                 })
             );
+    }
+
+    /// <summary>
+    /// The one-row status bar shows a single line. A message that continues says so, rather
+    /// than ending on a bare "Preflight failed:" that reads as though nothing more is known.
+    /// </summary>
+    internal static string FirstLine(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return "";
+        }
+        text = text.Trim();
+        var newline = text.IndexOfAny(['\r', '\n']);
+        return newline < 0 ? text : text[..newline].TrimEnd(':', ' ') + " — see the log for details";
     }
 
     [RelayCommand]

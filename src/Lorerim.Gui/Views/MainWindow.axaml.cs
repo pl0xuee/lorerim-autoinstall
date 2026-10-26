@@ -31,7 +31,9 @@ public partial class MainWindow : Window
 
     private void OnLogChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (LogList.IsVisible)
+        // IsEffectivelyVisible, not IsVisible: the list itself is never hidden, its parent pane
+        // is, and the engine logs thousands of lines an hour that would each queue a scroll.
+        if (LogList.IsEffectivelyVisible)
         {
             ScrollLogToEnd();
         }

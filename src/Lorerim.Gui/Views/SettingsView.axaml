@@ -1,32 +1,36 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Lorerim.Gui.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="900"
              x:Class="Lorerim.Gui.Views.SettingsView"
              x:DataType="vm:SettingsViewModel">
     <ScrollViewer>
-        <StackPanel Spacing="14" MaxWidth="860">
-            <StackPanel Spacing="2">
+        <StackPanel Spacing="14" MaxWidth="900" HorizontalAlignment="Left">
+            <StackPanel Spacing="3">
                 <TextBlock Classes="eyebrow" Text="CONFIGURATION"/>
                 <TextBlock Classes="h1" Text="Settings"/>
-                <TextBlock Classes="mono muted" Text="{Binding StatusText}" Margin="0,6,0,0"/>
+                <TextBlock Classes="muted" TextWrapping="Wrap"
+                           Text="Stored per user and kept private to your account. Folder changes made here are used by the Install page too."/>
             </StackPanel>
 
             <Border Classes="card">
                 <StackPanel Spacing="8">
                     <TextBlock Classes="eyebrow" Text="DIRECTORIES"/>
-                    <TextBlock Text="Install directory (needs ~330 GB on an SSD)"/>
+                    <TextBlock Classes="label" Text="Install directory — needs ~330 GB, ideally on an SSD"/>
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBox Grid.Column="0" Text="{Binding InstallDir}"/>
                         <Button Grid.Column="1" Content="Browse…" Margin="8,0,0,0"
                                 Command="{Binding BrowseInstallDirCommand}"/>
                     </Grid>
-                    <TextBlock Text="Download directory (needs ~250 GB; deletable after install)"/>
+                    <TextBlock Classes="label" Text="Download directory — needs ~250 GB, deletable after install"/>
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBox Grid.Column="0" Text="{Binding DownloadDir}"/>
                         <Button Grid.Column="1" Content="Browse…" Margin="8,0,0,0"
                                 Command="{Binding BrowseDownloadDirCommand}"/>
                     </Grid>
-                    <CheckBox Content="Set up Steam automatically after installing"
+                    <CheckBox Margin="0,4,0,0" Content="Set up Steam automatically after installing"
                               IsChecked="{Binding SetupSteamAfterInstall}"/>
                 </StackPanel>
             </Border>
@@ -34,43 +38,60 @@
             <Border Classes="card">
                 <StackPanel Spacing="8">
                     <TextBlock Classes="eyebrow" Text="NEXUS MODS"/>
-                    <TextBlock Text="{Binding OAuthStatus}" Classes="muted"/>
-                    <Button Content="Sign out" Command="{Binding SignOutCommand}"
-                            IsVisible="{Binding IsSignedIn}" HorizontalAlignment="Left"/>
-                    <TextBlock Text="API key fallback (nexusmods.com → Settings → API Keys)"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBox Text="{Binding NexusApiKey}" Width="420" PasswordChar="•"/>
-                        <Button Content="Validate &amp; save" Command="{Binding ValidateApiKeyCommand}"/>
-                    </StackPanel>
-                    <TextBlock Text="{Binding ApiKeyStatus}" Classes="muted"/>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Sign out" Margin="8,0,0,0"
+                                Command="{Binding SignOutCommand}"
+                                IsVisible="{Binding IsSignedIn}"/>
+                        <TextBlock Text="{Binding OAuthStatus}" TextWrapping="Wrap"
+                                   VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock Classes="label" Text="API key fallback — nexusmods.com → Settings → API Keys"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding NexusApiKey}" PasswordChar="•"/>
+                        <Button Grid.Column="1" Content="Validate &amp; save" Margin="8,0,0,0"
+                                Command="{Binding ValidateApiKeyCommand}"/>
+                    </Grid>
+                    <TextBlock Text="{Binding ApiKeyStatus}" Classes="muted" TextWrapping="Wrap"
+                               IsVisible="{Binding ApiKeyStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="eyebrow" Text="COMPATIBILITY"/>
+                    <TextBlock Classes="label" Text="Preferred Proton"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <ComboBox Grid.Column="0" HorizontalAlignment="Stretch"
+                                  ItemsSource="{Binding CompatTools}"
+                                  SelectedItem="{Binding SelectedTool}"/>
+                        <Button Grid.Column="1" Content="Rescan" Margin="8,0,0,0"
+                                Command="{Binding RefreshProtonListCommand}"/>
+                    </Grid>
+                    <TextBlock Classes="label" Text="Game resolution"/>
+                    <Grid ColumnDefinitions="*,Auto,Auto">
+                        <ComboBox Grid.Column="0" HorizontalAlignment="Stretch"
+                                  ItemsSource="{Binding Resolutions}"
+                                  SelectedItem="{Binding SelectedResolution}"/>
+                        <Button Grid.Column="1" Content="Apply now" Margin="8,0,0,0"
+                                Command="{Binding ApplyResolutionCommand}"/>
+                        <Button Grid.Column="2" Content="Rescan" Margin="8,0,0,0"
+                                Command="{Binding RefreshResolutionsCommand}"/>
+                    </Grid>
+                    <TextBlock Text="{Binding ResolutionStatus}" Classes="muted"
+                               TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
 
             <Border Classes="card">
                 <StackPanel Spacing="8">
                     <TextBlock Classes="eyebrow" Text="ADVANCED"/>
-                    <TextBlock Text="Preferred Proton"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <ComboBox ItemsSource="{Binding CompatTools}"
-                                  SelectedItem="{Binding SelectedTool}" MinWidth="260"/>
-                        <Button Content="Rescan" Command="{Binding RefreshProtonListCommand}"/>
-                    </StackPanel>
-                    <TextBlock Text="Game resolution"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <ComboBox ItemsSource="{Binding Resolutions}"
-                                  SelectedItem="{Binding SelectedResolution}" MinWidth="260"/>
-                        <Button Content="Apply now" Command="{Binding ApplyResolutionCommand}"/>
-                        <Button Content="Rescan" Command="{Binding RefreshResolutionsCommand}"/>
-                    </StackPanel>
-                    <TextBlock Text="{Binding ResolutionStatus}" Classes="muted"
-                               TextWrapping="Wrap"/>
-                    <TextBlock Text="Local .wabbajack file (leave empty to download automatically)"/>
+                    <TextBlock Classes="label" Text="Local .wabbajack file — leave empty to download automatically"/>
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBox Grid.Column="0" Text="{Binding WabbajackFilePath}"/>
                         <Button Grid.Column="1" Content="Browse…" Margin="8,0,0,0"
                                 Command="{Binding BrowseWabbajackFileCommand}"/>
                     </Grid>
-                    <TextBlock Text="Machine URL override (leave empty for LoreRim)"/>
+                    <TextBlock Classes="label" Text="Machine URL override — leave empty for LoreRim"/>
                     <TextBox Text="{Binding MachineUrlOverride}"/>
                 </StackPanel>
             </Border>
@@ -78,20 +99,30 @@
             <Border Classes="card">
                 <StackPanel Spacing="8">
                     <TextBlock Classes="eyebrow" Text="APPLICATION"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Classes="muted" Text="{Binding AppVersionText}" VerticalAlignment="Center"/>
-                        <Button Content="Check for app updates" Command="{Binding CheckAppUpdateCommand}"/>
-                        <Button Classes="accent" Content="Update &amp; restart" Command="{Binding InstallUpdateCommand}"
+                    <TextBlock Classes="muted" Text="{Binding AppVersionText}"/>
+                    <WrapPanel>
+                        <Button Content="Check for app updates" Margin="0,0,8,8"
+                                Command="{Binding CheckAppUpdateCommand}"/>
+                        <Button Classes="accent" Content="Update &amp; restart" Margin="0,0,8,8"
+                                Command="{Binding InstallUpdateCommand}"
                                 IsVisible="{Binding CanInstallUpdate}"/>
-                        <Button Content="Open release page" Command="{Binding OpenReleasePageCommand}"
+                        <Button Content="Open release page" Margin="0,0,8,8"
+                                Command="{Binding OpenReleasePageCommand}"
                                 IsVisible="{Binding UpdateUrl, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                    </StackPanel>
-                    <TextBlock Classes="muted" Text="{Binding UpdateStatusText}"/>
+                    </WrapPanel>
+                    <TextBlock Classes="muted" Text="{Binding UpdateStatusText}" TextWrapping="Wrap"
+                               IsVisible="{Binding UpdateStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                 </StackPanel>
             </Border>
 
-            <Button Content="Save changes" Classes="accent" Command="{Binding SaveCommand}"
-                    HorizontalAlignment="Left" MinWidth="160"/>
+            <!-- The confirmation sits beside the button it answers, not at the top of a long page -->
+            <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,8">
+                <Button Grid.Column="0" Content="Save changes" Classes="accent" MinWidth="160"
+                        Command="{Binding SaveCommand}"/>
+                <TextBlock Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center"
+                           Classes="mono muted" TextWrapping="Wrap"
+                           Text="{Binding StatusText}"/>
+            </Grid>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

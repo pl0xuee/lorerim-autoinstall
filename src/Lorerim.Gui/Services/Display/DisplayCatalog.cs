@@ -189,8 +189,18 @@ public partial class DisplayCatalog(string? sysfsRoot = null, Func<string?>? xra
             {
                 return null;
             }
-            var output = process.StandardOutput.ReadToEnd();
-            return process.WaitForExit(5000) && process.ExitCode == 0 ? output : null;
+            // Read concurrently and bound the wait. ReadToEnd() before WaitForExit(timeout)
+            // blocks until xrandr closes its stdout, so a hung X connection would freeze the
+            // UI thread this runs on whenever a page is shown; stderr is drained for the same
+            // reason, so neither pipe can fill and stall the child.
+            var output = process.StandardOutput.ReadToEndAsync();
+            _ = process.StandardError.ReadToEndAsync();
+            if (!process.WaitForExit(5000))
+            {
+                process.Kill(entireProcessTree: true);
+                return null;
+            }
+            return process.ExitCode == 0 ? output.GetAwaiter().GetResult() : null;
         }
         catch (Exception)
         {
