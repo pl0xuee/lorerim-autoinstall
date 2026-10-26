@@ -8,11 +8,11 @@ set -euo pipefail
 
 TARGET="${1:?usage: setup-deps.sh <target-dir>}"
 
-ENGINE_VERSION="0.5.7"
+ENGINE_VERSION="0.5.10"
 # Pinned SHA-256 (from the release's SHA256SUMS asset). If a download fails verification,
 # the upstream asset changed under a fixed version tag (tampering or re-release) —
 # investigate, don't just bump the hash blindly.
-ENGINE_SHA256="f25f639eab680978b3af602fb6a7a1c5c96916a2ecf77b9c3b53f85d760eadff"
+ENGINE_SHA256="10480a3d452f6611d236219aab450e43bdcd7eab2f9c5cde96fb43e55ce5625d"
 ENGINE_URL="https://github.com/Omni-guides/dev-jackify-engine/releases/download/v${ENGINE_VERSION}/jackify-engine-${ENGINE_VERSION}-linux-x64.tar.gz"
 
 WORK="$(mktemp -d)"

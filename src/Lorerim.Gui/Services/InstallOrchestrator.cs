@@ -69,7 +69,11 @@ public class InstallOrchestrator(
         {
             var summary = string.Join("\n", failures.Select(f => $"• {f.Name}: {f.Detail}"));
             Report(InstallPhase.Preflight, StepState.Failed, summary);
-            throw new InvalidOperationException($"Preflight failed:\n{summary}");
+            // The first line stands alone in the one-row status bar, so it carries the count;
+            // the bulleted detail follows for the log pane.
+            throw new InvalidOperationException(
+                $"Preflight failed ({failures.Count} blocking issue{(failures.Count == 1 ? "" : "s")}):\n{summary}"
+            );
         }
         // Build the Steam context now so a broken Steam setup fails here, not 250GB later.
         var steam =

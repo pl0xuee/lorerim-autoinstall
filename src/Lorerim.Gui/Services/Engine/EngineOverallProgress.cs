@@ -11,8 +11,8 @@ public readonly record struct EngineOverallProgress(bool Indeterminate, double F
 {
     public static EngineOverallProgress From(EngineFileProgress p)
     {
-        // The engine's (index/total) counter is optional and this engine version (0.5.7) often
-        // omits it; without it there is no honest fraction, so animate instead of freezing at 0.
+        // The engine's (index/total) counter is optional and the engine often omits it;
+        // without it there is no honest fraction, so animate instead of freezing at 0.
         if (p.Index is { } index && p.Total is { } total && total > 0)
         {
             // index is 1-based (file N of total): (N-1) files done, plus the current file's own

@@ -97,7 +97,7 @@ public partial class JackifyEngineRunner(
 
     public async Task InstallAsync(EngineInstallRequest req, CancellationToken ct)
     {
-        // Note: this engine version (0.5.7) has no --show-file-progress flag; progress
+        // Note: the bundled engine (0.5.10) has no --show-file-progress flag; progress
         // arrives as plain console lines and [FILE_PROGRESS] lines when supported.
         var args = new List<string> { "install" };
         if (req.WabbajackFile is not null)
@@ -139,17 +139,20 @@ public partial class JackifyEngineRunner(
             }
         });
 
-        // Drain stderr concurrently to avoid pipe deadlock; error lines go through the same
-        // handler so CC-content detection sees them too.
+        // Drain stderr concurrently to avoid pipe deadlock. Its lines go through the same
+        // handler so CC-content detection and structured errors see them too — as they arrive,
+        // not after stdout closes: a warning from hour one is no use in the log at hour six.
+        // The handler's state is shared between the two readers, hence the lock.
         var stderrTask = Task.Run(
             async () =>
             {
-                var lines = new List<string>();
                 await foreach (var line in ReadLinesAsync(p.StandardError, ct))
                 {
-                    lines.Add(line);
+                    lock (state)
+                    {
+                        HandleLine(line, p, state);
+                    }
                 }
-                return lines;
             },
             CancellationToken.None
         );
@@ -158,12 +161,12 @@ public partial class JackifyEngineRunner(
         {
             await foreach (var line in ReadLinesAsync(p.StandardOutput, ct))
             {
-                HandleLine(line, p, state);
+                lock (state)
+                {
+                    HandleLine(line, p, state);
+                }
             }
-            foreach (var line in await stderrTask)
-            {
-                HandleLine(line, p, state);
-            }
+            await stderrTask;
             await p.WaitForExitAsync(ct);
         }
         finally
@@ -185,7 +188,12 @@ public partial class JackifyEngineRunner(
         if (p.ExitCode != 0)
         {
             throw new EngineException(
-                BuildFailureMessage(p.ExitCode, state.CcErrors, state.CreationKitError)
+                BuildFailureMessage(
+                    p.ExitCode,
+                    state.CcErrors,
+                    state.CreationKitError,
+                    state.StructuredErrors
+                )
             );
         }
     }
@@ -194,6 +202,7 @@ public partial class JackifyEngineRunner(
     {
         public List<string> CcErrors { get; } = [];
         public bool CreationKitError { get; set; }
+        public List<EngineStructuredError> StructuredErrors { get; } = [];
         public List<ManualDownload> PendingManual { get; } = [];
     }
 
@@ -210,6 +219,12 @@ public partial class JackifyEngineRunner(
             if (TryHandleJsonEvent(trimmed, p, state.PendingManual))
             {
                 return;
+            }
+            // Recorded, then left to fall through to the log like any other line: the raw JSON
+            // is what a bug report needs, the explanation is what the failure message uses.
+            if (EngineErrorParser.TryParse(trimmed) is { } structured)
+            {
+                state.StructuredErrors.Add(structured);
             }
         }
 
@@ -383,10 +398,11 @@ public partial class JackifyEngineRunner(
         }
     }
 
-    private static string BuildFailureMessage(
+    internal static string BuildFailureMessage(
         int exitCode,
         List<string> ccErrors,
-        bool creationKitError
+        bool creationKitError,
+        IReadOnlyList<EngineStructuredError>? structured = null
     )
     {
         if (ccErrors.Count > 0)
@@ -399,6 +415,16 @@ public partial class JackifyEngineRunner(
         {
             return "This modlist needs the Skyrim Creation Kit installed in Steam. "
                 + "Install \"Skyrim Special Edition: Creation Kit\" and retry.";
+        }
+        // The last structured error is the one that ended the run; earlier ones are usually
+        // the retries that led up to it.
+        if (structured is { Count: > 0 })
+        {
+            return structured[^1].Explanation;
+        }
+        if (EngineErrorParser.ForExitCode(exitCode) is { } named)
+        {
+            return named;
         }
         return $"jackify-engine exited with code {exitCode} — see the log for details.";
     }

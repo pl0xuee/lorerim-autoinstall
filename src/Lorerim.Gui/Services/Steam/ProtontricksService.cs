@@ -9,8 +9,8 @@ namespace Lorerim.Gui.Services.Steam;
 
 /// <summary>
 /// Runs protontricks to install prefix prerequisites (Jackify protontricks_prefix port).
-/// Skyrim/MO2 verb set comes from Jackify's modlist_wine_ops defaults + Skyrim extras;
-/// dxvk is omitted because Proton ships its own.
+/// Skyrim/MO2 verb set comes from Jackify's modlist_wine_ops defaults + Skyrim extras
+/// (d3dx9_42 joined them in Jackify 0.8.1.3); dxvk is omitted because Proton ships its own.
 /// </summary>
 public class ProtontricksService(LogService log)
 {
@@ -22,6 +22,7 @@ public class ProtontricksService(LogService log)
         "vcrun2022",
         "d3dcompiler_47",
         "d3dx11_43",
+        "d3dx9_42",
         "d3dcompiler_43",
         "dotnet6",
         "dotnet7",
